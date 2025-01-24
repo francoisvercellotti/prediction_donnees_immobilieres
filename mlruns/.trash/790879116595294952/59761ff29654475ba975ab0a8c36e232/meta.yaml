@@ -1,0 +1,17 @@
+artifact_uri: /mnt/c/Users/mrgxl/Documents/cours françois/exercice python/Machine
+  Learning/prediction_donnees_immobilieres/mlruns/790879116595294952/59761ff29654475ba975ab0a8c36e232/artifacts
+deleted_time: 1737646747545
+end_time: null
+entry_point_name: ''
+experiment_id: '790879116595294952'
+lifecycle_stage: deleted
+run_id: 59761ff29654475ba975ab0a8c36e232
+run_name: dummy_regressor_run_baseline
+run_uuid: 59761ff29654475ba975ab0a8c36e232
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1737646597668
+status: 1
+tags: []
+user_id: francois

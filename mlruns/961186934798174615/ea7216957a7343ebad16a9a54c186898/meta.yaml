@@ -1,0 +1,16 @@
+artifact_uri: /mnt/c/Users/mrgxl/Documents/cours françois/exercice python/Machine
+  Learning/prediction_donnees_immobilieres/mlruns/961186934798174615/ea7216957a7343ebad16a9a54c186898/artifacts
+end_time: 1737494011047
+entry_point_name: ''
+experiment_id: '961186934798174615'
+lifecycle_stage: active
+run_id: ea7216957a7343ebad16a9a54c186898
+run_name: logistic_regression_run
+run_uuid: ea7216957a7343ebad16a9a54c186898
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1737493841881
+status: 3
+tags: []
+user_id: francois

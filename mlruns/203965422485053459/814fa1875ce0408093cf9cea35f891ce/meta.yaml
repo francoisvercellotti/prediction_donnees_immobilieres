@@ -1,0 +1,16 @@
+artifact_uri: /mnt/c/Users/mrgxl/Documents/cours françois/exercice python/Machine
+  Learning/prediction_donnees_immobilieres/mlruns/203965422485053459/814fa1875ce0408093cf9cea35f891ce/artifacts
+end_time: 1737708795630
+entry_point_name: ''
+experiment_id: '203965422485053459'
+lifecycle_stage: active
+run_id: 814fa1875ce0408093cf9cea35f891ce
+run_name: xgboost_regressor_run_tuned1
+run_uuid: 814fa1875ce0408093cf9cea35f891ce
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1737708795233
+status: 4
+tags: []
+user_id: francois

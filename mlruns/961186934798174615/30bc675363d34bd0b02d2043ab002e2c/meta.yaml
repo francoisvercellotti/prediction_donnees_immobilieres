@@ -1,0 +1,16 @@
+artifact_uri: /mnt/c/Users/mrgxl/Documents/cours françois/exercice python/Machine
+  Learning/prediction_donnees_immobilieres/mlruns/961186934798174615/30bc675363d34bd0b02d2043ab002e2c/artifacts
+end_time: 1737552465591
+entry_point_name: ''
+experiment_id: '961186934798174615'
+lifecycle_stage: active
+run_id: 30bc675363d34bd0b02d2043ab002e2c
+run_name: random_forest_classifier_run_combination_1
+run_uuid: 30bc675363d34bd0b02d2043ab002e2c
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1737552289538
+status: 3
+tags: []
+user_id: francois

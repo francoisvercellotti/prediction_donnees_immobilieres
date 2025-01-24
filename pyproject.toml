@@ -3,19 +3,27 @@ name = "prediction-donnees-immobilieres"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "fastparquet>=2024.11.0",
     "ipykernel>=6.29.5",
     "jupyter>=1.1.1",
     "jupyter-core>=5.7.2",
     "matplotlib>=3.10.0",
-    "mlflow>=1.27.0",
-    "numpy>=2.2.1",
+    "numpy==1.23.5",
     "pandas>=2.2.3",
-    "pyarrow>=19.0.0",
+    "pip>=24.3.1",
+    "pyarrow>=4.0.0,<19",
     "scikit-learn>=1.6.1",
     "seaborn>=0.13.2",
+    "mlflow==2.19.0",
+    "setuptools>=75.8.0",
+    "cloudpickle==3.1.1",
+    "psutil==6.1.1",
+    "scipy==1.15.1",
+    "xgboost==2.0.3",
+    "imblearn>=0.0",
+    "catboost>=1.2.5",
 ]
 
 [dependency-groups]

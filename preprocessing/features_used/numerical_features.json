@@ -5,7 +5,5 @@
     "mois_transaction",
     "annee_transaction",
     "prix_m2_moyen_mois_precedent",
-    "nb_transactions_mois_precedent",
-    "prix_m2_moyen_glissant_6m",
-    "nb_transaction_moyen_glissant_6m"
+    "nb_transactions_mois_precedent"
 ]

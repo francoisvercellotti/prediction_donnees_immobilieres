@@ -1,0 +1,40 @@
+artifact_path: model
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.11.11
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+mlflow_version: 2.19.0
+model_size_bytes: 626949
+model_uuid: 1d1848a204914d65856b7934b5c03d75
+run_id: ede52d5f729548649d6f25ec255a2f1e
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "integer", "name": "vefa", "required": true}, {"type": "integer",
+    "name": "surface_habitable", "required": true}, {"type": "double", "name": "latitude",
+    "required": true}, {"type": "double", "name": "longitude", "required": true},
+    {"type": "integer", "name": "mois_transaction", "required": true}, {"type": "integer",
+    "name": "annee_transaction", "required": true}, {"type": "double", "name": "prix_m2_moyen_mois_precedent",
+    "required": true}, {"type": "double", "name": "nb_transactions_mois_precedent",
+    "required": true}, {"type": "long", "name": "ville_demandee", "required": true},
+    {"type": "long", "name": "type_batiment_Maison", "required": true}, {"type": "long",
+    "name": "nom_region_Nouvelle-Aquitaine", "required": true}, {"type": "long", "name":
+    "nom_region_Occitanie", "required": true}, {"type": "long", "name": "nom_region_Provence-Alpes-C\u00f4te
+    d''Azur", "required": true}, {"type": "long", "name": "nom_region_\u00cele-de-France",
+    "required": true}]'
+  outputs: '[{"type": "double", "name": "prix", "required": true}]'
+  params: null
+utc_time_created: '2025-01-24 08:43:20.901277'

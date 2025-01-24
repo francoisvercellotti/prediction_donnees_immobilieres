@@ -1,0 +1,22 @@
+{
+  "dataframe_split": {
+    "columns": [
+      "latitude",
+      "longitude",
+      "surface_habitable",
+      "prix_m2_moyen_mois_precedent",
+      "nb_transactions_mois_precedent",
+      "mois_transaction"
+    ],
+    "data": [
+      [
+        44.8264165310794,
+        -0.571863167665518,
+        29,
+        4680.03,
+        44.0,
+        5
+      ]
+    ]
+  }
+}
