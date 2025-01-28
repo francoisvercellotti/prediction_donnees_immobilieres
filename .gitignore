@@ -10,3 +10,6 @@ mlruns/
 
 # Virtual environments
 .venv
+
+# Dossier data à ignorer
+data/
