@@ -2,7 +2,7 @@ import os
 import sys
 # Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
+from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET, random_state
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
