@@ -1,10 +1,13 @@
+import os
+import sys
+# Ajouter le dossier parent au chemin pour importer les paramètres
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 from typing import Tuple, Dict
 import logging
-import sys
-import os
 
 # Configuration des logs
 logging.basicConfig(
@@ -15,9 +18,7 @@ logging.basicConfig(
     ]
 )
 
-# Ajouter le dossier parent au chemin pour importer les paramètres
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET, random_state
+
 
 
 # Fonction pour encoder une colonne catégorielle avec OneHotEncoder

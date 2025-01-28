@@ -3,6 +3,7 @@ import sys
 # Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
+
 import pytest
 import pandas as pd
 from src.split_and_encode import split_and_encode
