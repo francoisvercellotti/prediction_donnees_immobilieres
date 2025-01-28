@@ -1,6 +1,8 @@
-import pandas as pd
 import logging
 import os
+
+# S'assurer que le répertoire 'data' existe
+os.makedirs('data', exist_ok=True)
 
 # Configuration du journal de bord (logging)
 logger = logging.getLogger()
