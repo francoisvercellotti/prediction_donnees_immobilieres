@@ -1,3 +1,4 @@
+import os
 import pytest
 import pandas as pd
 from io import StringIO
@@ -50,6 +51,10 @@ def test_compute_features_price_per_m2(sample_data):
 
 # Test pour la fonction preprocessing
 def test_preprocessing(sample_data):
+    # Vérifier si le répertoire data/interim existe, sinon le créer
+    if not os.path.exists('data/interim'):
+        os.makedirs('data/interim')
+
     # Appliquer le prétraitement sur l'exemple de données
     df_prepared = preprocessing(sample_data)
 
