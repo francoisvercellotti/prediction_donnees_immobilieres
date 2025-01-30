@@ -90,6 +90,9 @@ def split_and_encode(df: pd.DataFrame, target_classification: str, target_regres
     logging.info(f"X_train: {X_train.shape}, X_test: {X_test.shape}.")
 
     # Afficher les 5 premières lignes de chaque DataFrame en sortie
+    pd.set_option("display.max_columns", None)  # Affiche toutes les colonnes
+    pd.set_option("display.width", 1000)  # Ajuste la largeur d'affichage pour éviter les coupures
+
     logging.info("5 premières lignes de X_train:")
     logging.info(X_train.head())
 

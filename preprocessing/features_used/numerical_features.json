@@ -1,9 +1,0 @@
-[
-    "surface_habitable",
-    "latitude",
-    "longitude",
-    "mois_transaction",
-    "annee_transaction",
-    "prix_m2_moyen_mois_precedent",
-    "nb_transactions_mois_precedent"
-]
