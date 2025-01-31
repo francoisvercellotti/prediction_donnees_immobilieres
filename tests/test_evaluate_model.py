@@ -28,9 +28,9 @@ def create_test_data():
 
 def test_error_analysis_metrics():
     """Teste la fonction error_analysis sans générer de fichiers ni de runs MLflow"""
-    X_train, X_test, y_train, y_test, model = create_test_data()
 
-    # Désactive tous les effets secondaires de MLflow et des fichiers
+    X_train, X_test, y_train, y_test, model = create_test_data()
+    # Exécution de la fonction sans MLflow ni fichiers
     with patch('mlflow.start_run', return_value=nullcontext()), \
          patch('mlflow.log_metrics'), \
          patch('mlflow.log_params'), \
@@ -39,8 +39,7 @@ def test_error_analysis_metrics():
          patch('os.makedirs'), \
          patch('matplotlib.pyplot.close'):
 
-        # Forcer un répertoire de sortie temporaire
-        metrics = error_analysis(model, X_train, y_train, X_test, y_test, output_dir="/tmp")
+        metrics = error_analysis(model, X_train, y_train, X_test, y_test, run_mlflow=False)
 
         # Vérifications des métriques
         expected_metrics = ['Train RMSE', 'Train MAE', 'Train R2',

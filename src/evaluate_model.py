@@ -1,4 +1,5 @@
 import os
+import tempfile
 import mlflow
 import mlflow.sklearn
 import pandas as pd
@@ -153,72 +154,72 @@ def plot_regression_error(y_true, y_pred, title, filename, output_dir):
     plt.savefig(os.path.join(output_dir, filename))
     plt.close()
 
-def error_analysis(model, X_train, y_train, X_test, y_test, output_dir="artifacts"):
+def error_analysis(model, X_train, y_train, X_test, y_test,run_mlflow=True):
     """Effectue l'analyse des erreurs et enregistre les résultats dans MLflow."""
-    os.makedirs(output_dir, exist_ok=True)
+    # Utilisation d'un répertoire temporaire
+    with tempfile.TemporaryDirectory() as output_dir:
+        if X_train.empty or X_test.empty or y_train.empty or y_test.empty:
+            raise ValueError("❌ Les jeux de données d'entraînement ou de test sont vides !")
 
-    if X_train.empty or X_test.empty or y_train.empty or y_test.empty:
-        raise ValueError("❌ Les jeux de données d'entraînement ou de test sont vides !")
+        new_run_name = RUN_NAME.replace("train", "evaluate")
 
-    new_run_name = RUN_NAME.replace("train", "evaluate")
+        experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+        with mlflow.start_run(run_name=new_run_name, experiment_id=experiment.experiment_id):
+            # Prédictions
+            y_train_pred = model.predict(X_train)
+            y_test_pred = model.predict(X_test)
 
-    experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
-    with mlflow.start_run(run_name=new_run_name, experiment_id=experiment.experiment_id):
-        # Prédictions
-        y_train_pred = model.predict(X_train)
-        y_test_pred = model.predict(X_test)
+            # Conversion en numpy arrays 1D
+            y_train = y_train.values.ravel()
+            y_test = y_test.values.ravel()
+            y_train_pred = y_train_pred.ravel()
+            y_test_pred = y_test_pred.ravel()
 
-        # Conversion en numpy arrays 1D
-        y_train = y_train.values.ravel()
-        y_test = y_test.values.ravel()
-        y_train_pred = y_train_pred.ravel()
-        y_test_pred = y_test_pred.ravel()
+            # Calcul des métriques de base
+            metrics = {
+                "Train RMSE": float(np.sqrt(mean_squared_error(y_train, y_train_pred))),
+                "Train MAE": float(mean_absolute_error(y_train, y_train_pred)),
+                "Train R2": float(r2_score(y_train, y_train_pred)),
+                "Test RMSE": float(np.sqrt(mean_squared_error(y_test, y_test_pred))),
+                "Test MAE": float(mean_absolute_error(y_test, y_test_pred)),
+                "Test R2": float(r2_score(y_test, y_test_pred)),
+            }
 
-        # Calcul des métriques de base
-        metrics = {
-            "Train RMSE": float(np.sqrt(mean_squared_error(y_train, y_train_pred))),
-            "Train MAE": float(mean_absolute_error(y_train, y_train_pred)),
-            "Train R2": float(r2_score(y_train, y_train_pred)),
-            "Test RMSE": float(np.sqrt(mean_squared_error(y_test, y_test_pred))),
-            "Test MAE": float(mean_absolute_error(y_test, y_test_pred)),
-            "Test R2": float(r2_score(y_test, y_test_pred)),
-        }
+            # Calcul des erreurs absolues
+            absolute_errors_train = np.abs(y_train - y_train_pred)
+            absolute_errors_test = np.abs(y_test - y_test_pred)
 
-        # Calcul des erreurs absolues
-        absolute_errors_train = np.abs(y_train - y_train_pred)
-        absolute_errors_test = np.abs(y_test - y_test_pred)
+            # Génération des métriques et du rapport
+            mlflow_metrics, report_text = format_metrics(metrics, absolute_errors_train, absolute_errors_test)
 
-        # Génération des métriques et du rapport
-        mlflow_metrics, report_text = format_metrics(metrics, absolute_errors_train, absolute_errors_test)
+            # Log des métriques dans MLflow
+            mlflow.log_metrics(mlflow_metrics)
 
-        # Log des métriques dans MLflow
-        mlflow.log_metrics(mlflow_metrics)
+            # Affichage du rapport
+            print(report_text)
 
-        # Affichage du rapport
-        print(report_text)
+            # Génération des visualisations
+            plot_regression_predictions(y_train, y_train_pred,
+                                     "Prédictions vs Réel (Train)",
+                                     "train_predictions.png",
+                                     output_dir)
+            plot_regression_predictions(y_test, y_test_pred,
+                                     "Prédictions vs Réel (Test)",
+                                     "test_predictions.png",
+                                     output_dir)
+            plot_regression_error(y_train, y_train_pred,
+                                "Distribution des Erreurs (Train)",
+                                "train_error_dist.png",
+                                output_dir)
+            plot_regression_error(y_test, y_test_pred,
+                                "Distribution des Erreurs (Test)",
+                                "test_error_dist.png",
+                                output_dir)
 
-        # Génération des visualisations
-        plot_regression_predictions(y_train, y_train_pred,
-                                 "Prédictions vs Réel (Train)",
-                                 "train_predictions.png",
-                                 output_dir)
-        plot_regression_predictions(y_test, y_test_pred,
-                                 "Prédictions vs Réel (Test)",
-                                 "test_predictions.png",
-                                 output_dir)
-        plot_regression_error(y_train, y_train_pred,
-                            "Distribution des Erreurs (Train)",
-                            "train_error_dist.png",
-                            output_dir)
-        plot_regression_error(y_test, y_test_pred,
-                            "Distribution des Erreurs (Test)",
-                            "test_error_dist.png",
-                            output_dir)
+            # Log des visualisations dans MLflow
+            mlflow.log_artifacts(output_dir)
 
-        # Log des visualisations dans MLflow
-        mlflow.log_artifacts(output_dir)
-
-        return metrics
+            return metrics
 
 if __name__ == "__main__":
     print("📥 Chargement des données et modèle...")
