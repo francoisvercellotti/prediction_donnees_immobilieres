@@ -6,7 +6,7 @@ import pandas as pd
 
 # Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from split_and_encode import split_and_encode
+from src.split_and_encode import split_and_encode
 from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
 
 # Configuration des logs
