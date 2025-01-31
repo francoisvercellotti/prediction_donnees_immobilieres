@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 import os
 import shutil
-from src.evaluate_model import error_analysis, load_model_from_mlflow, load_data_from_mlflow
+from src.evaluate_model import error_analysis
 
 def create_test_data():
     """Crée des données synthétiques pour les tests"""

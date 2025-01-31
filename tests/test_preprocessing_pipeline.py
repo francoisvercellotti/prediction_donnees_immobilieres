@@ -5,7 +5,7 @@ import joblib
 import pytest
 import pandas as pd
 from src.preprocessing_pipeline import preprocess_data, ENCODER_PATH
-from src.split_and_encode import split_and_encode
+
 
 # Données d'exemple
 data = {

@@ -2,9 +2,6 @@ import os
 import sys
 # Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import mlflow
-import mlflow.sklearn
-
 import pytest
 import pandas as pd
 import numpy as np
@@ -12,8 +9,7 @@ from unittest.mock import patch, MagicMock
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from src.train_and_log_model_with_mlflow import train_and_log_model_with_mlflow
-from src.preprocessing_pipeline import preprocess_data
-from src.split_and_encode import split_and_encode
+
 
 def generate_mock_data(n_samples=100):
     np.random.seed(42)
