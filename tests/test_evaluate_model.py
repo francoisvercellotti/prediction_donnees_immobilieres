@@ -36,6 +36,11 @@ def test_error_analysis_output_structure():
     # Préparation
     X_train, X_test, y_train, y_test, model = create_test_data()
     output_dir = "test_artifacts"
+
+    # Vérification si le répertoire existe déjà
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)  # Si il existe, le supprimer avant le test
+
     os.makedirs(output_dir, exist_ok=True)
 
     try:
@@ -64,6 +69,11 @@ def test_file_creation():
     # Préparation
     X_train, X_test, y_train, y_test, model = create_test_data()
     output_dir = "test_artifacts"
+
+    # Vérification si le répertoire existe déjà
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)  # Si il existe, le supprimer avant le test
+
     os.makedirs(output_dir, exist_ok=True)
 
     try:
@@ -92,6 +102,11 @@ def test_empty_data():
 
     empty_df = pd.DataFrame()
     output_dir = "test_artifacts"
+
+    # Ne pas créer le répertoire si déjà présent
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)  # Si il existe, le supprimer avant le test
+
     os.makedirs(output_dir, exist_ok=True)
 
     try:
@@ -113,6 +128,11 @@ def test_metrics_values():
     # Préparation
     X_train, X_test, y_train, y_test, model = create_test_data()
     output_dir = "test_artifacts"
+
+    # Vérification si le répertoire existe déjà
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)  # Si il existe, le supprimer avant le test
+
     os.makedirs(output_dir, exist_ok=True)
 
     try:
