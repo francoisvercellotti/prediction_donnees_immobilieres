@@ -1,23 +1,16 @@
 # Variables
 PYTHON = python
-DATA_DIR = data
+DATA_DIR = ./data
 LOADED_DIR = $(DATA_DIR)/loaded
 INTERIM_DIR = $(DATA_DIR)/interim
-MODELS_DIR = models
-INPUT_FILE ?= # Si cette variable n'est pas définie, elle sera vide
+MODELS_DIR = ./models
 
 # Création des répertoires nécessaires
 $(LOADED_DIR) $(INTERIM_DIR) $(MODELS_DIR):
 	mkdir -p $@
 
 # Étape 1: Chargement des données
-load: $(LOADED_DIR)/loaded_dataset.parquet
-
 $(LOADED_DIR)/loaded_dataset.parquet: | $(LOADED_DIR)
-	@if [ -z "$(INPUT_FILE)" ]; then \
-		echo "Erreur : il faut spécifier le chemin du fichier à charger avec INPUT_FILE"; \
-		exit 1; \
-	fi
 	$(PYTHON) load_data.py $(INPUT_FILE)
 
 # Étape 2: Feature Engineering
@@ -61,4 +54,4 @@ help:
 	@echo "make all INPUT_FILE=<chemin_fichier> : Exécuter tout le pipeline"
 	@echo "make clean                          : Nettoyer les fichiers générés"
 
-.PHONY: clean all help split_and_encode preprocess train evaluate load
+.PHONY: clean all help split_and_encode preprocess train evaluate

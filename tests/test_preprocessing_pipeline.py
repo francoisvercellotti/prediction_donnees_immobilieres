@@ -1,13 +1,9 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-import joblib
 import pytest
 import pandas as pd
-from src.preprocessing_pipeline import preprocess_data, ENCODER_PATH
+from unittest.mock import patch
+from src.preprocessing_pipeline import preprocess_data
 
-
-# Données d'exemple
+# Données d'exemple (identiques à votre précédent exemple)
 data = {
     'prix': [190000.0, 90000.0, 65000.0, 250000.0, 150000.0, 300000.0, 120000.0, 200000.0, 175000.0, 220000.0],
     'type_batiment': ['Appartement', 'Appartement', 'Appartement', 'Maison', 'Maison', 'Appartement', 'Maison', 'Appartement', 'Maison', 'Appartement'],
@@ -27,24 +23,28 @@ data = {
 df = pd.DataFrame(data)
 columns_to_encode = ['type_batiment', 'nom_region']
 
-
 def test_preprocess_data():
-    X_train, X_test, y_train_reg, y_test_reg, y_train_cls, y_test_cls = preprocess_data(df, columns_to_encode)
+    """Test du pipeline de prétraitement des données sans créer de fichiers"""
+    # Utiliser patch pour éviter la création de fichiers
+    with patch('joblib.dump'), patch('os.makedirs'):
+        # Prétraiter les données
+        X_train, X_test, y_train_reg, y_test_reg, y_train_cls, y_test_cls = preprocess_data(df, columns_to_encode)
 
-    # Vérifier que les DataFrames ne sont pas vides
-    assert not X_train.empty, "X_train est vide"
-    assert not X_test.empty, "X_test est vide"
-    assert not y_train_reg.empty, "y_train_reg est vide"
-    assert not y_test_reg.empty, "y_test_reg est vide"
-    assert not y_train_cls.empty, "y_train_cls est vide"
-    assert not y_test_cls.empty, "y_test_cls est vide"
+        # Vérifier que les DataFrames ne sont pas vides
+        assert not X_train.empty, "X_train est vide"
+        assert not X_test.empty, "X_test est vide"
+        assert not y_train_reg.empty, "y_train_reg est vide"
+        assert not y_test_reg.empty, "y_test_reg est vide"
+        assert not y_train_cls.empty, "y_train_cls est vide"
+        assert not y_test_cls.empty, "y_test_cls est vide"
 
-    # Vérifier que l'encodage a bien été sauvegardé
-    assert os.path.exists(ENCODER_PATH), "Le fichier d'encodeur n'a pas été créé"
+        # Vérifier les colonnes encodées
+        for col in columns_to_encode:
+            encoded_columns = [c for c in X_train.columns if c.startswith(f"{col}_")]
+            assert len(encoded_columns) > 0, f"Colonnes encodées pour {col} manquantes"
 
-    # Charger les encodeurs et vérifier leur type
-    encoders = joblib.load(ENCODER_PATH)
-    assert isinstance(encoders, dict), "L'encodage sauvegardé n'est pas un dictionnaire"
+        # Vérification supplémentaire des dimensions
+        assert len(X_train) + len(X_test) == len(df), "La répartition des données est incorrecte"
 
 if __name__ == "__main__":
     pytest.main()

@@ -1,15 +1,13 @@
 import os
 import sys
-# Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from src.train_and_log_model_with_mlflow import train_and_log_model_with_mlflow
-
 
 def generate_mock_data(n_samples=100):
     np.random.seed(42)
@@ -52,17 +50,16 @@ def test_train_and_log_model_with_mlflow():
     experiment_name = "test_experiment"
     run_name = "test_run"
 
-    # Mock MLflow functions
-    with patch("mlflow.start_run") as mock_start_run, \
+    # Mock MLflow functions et désactiver la génération de fichiers
+    with patch("mlflow.start_run"), \
          patch("mlflow.set_experiment"), \
          patch("mlflow.log_param"), \
          patch("mlflow.log_metrics"), \
          patch("mlflow.log_artifact"), \
          patch("mlflow.sklearn.log_model"), \
          patch("mlflow.set_tags"), \
-         patch("mlflow.tracking.MlflowClient"):
-
-        mock_start_run.return_value.__enter__.return_value = MagicMock()
+         patch("mlflow.tracking.MlflowClient"), \
+         patch('pandas.DataFrame.to_parquet'):
 
         trained_model, scores_dict = train_and_log_model_with_mlflow(
             model,
@@ -78,19 +75,14 @@ def test_train_and_log_model_with_mlflow():
             scoring_metrics
         )
 
-    # Vérification que le modèle est bien entraîné
+    # Vérifications identiques au test précédent
     assert trained_model is not None, "Le modèle entraîné ne doit pas être None"
-
-    # Vérification que les scores sont bien calculés
     assert isinstance(scores_dict, dict), "Les scores doivent être retournés sous forme de dictionnaire"
     assert "moyenne_test_r2" in scores_dict, "Les scores de R2 doivent être inclus dans le dictionnaire de sortie"
 
-    # Vérification que la validation croisée a bien fonctionné
     for metric in scoring_metrics:
         assert f"moyenne_test_{metric}" in scores_dict, f"La métrique {metric} doit être présente dans les scores"
         assert f"moyenne_train_{metric}" in scores_dict, f"La métrique {metric} doit être présente pour l'entraînement"
-
-    print("Test passé avec succès !")
 
 if __name__ == "__main__":
     pytest.main(["-v", "test_train_model.py"])
