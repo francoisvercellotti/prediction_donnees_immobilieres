@@ -28,9 +28,9 @@ def create_test_data():
 
 def test_error_analysis_metrics():
     """Teste la fonction error_analysis sans générer de fichiers ni de runs MLflow"""
-
     X_train, X_test, y_train, y_test, model = create_test_data()
-    # Exécution de la fonction sans MLflow ni fichiers
+
+    # Exécution de la fonction sans MLflow ni fichiers en patchant les appels à MLflow
     with patch('mlflow.start_run', return_value=nullcontext()), \
          patch('mlflow.log_metrics'), \
          patch('mlflow.log_params'), \
