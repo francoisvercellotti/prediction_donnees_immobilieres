@@ -11,19 +11,31 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mlflow:
-        image: ghcr.io/mlflow/mlflow:v2.19.0  # Mise à jour pour correspondre à votre version
+        image: ghcr.io/mlflow/mlflow:v2.19.0
         ports:
           - 5000:5000
         options: >-
-          --health-cmd "curl -s -f http://127.0.0.1:5000/health || exit 1"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 5
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1"
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 10
+          --health-start-period 20s
         env:
-          MLFLOW_SERVER_HOST: 0.0.0.0
-          MLFLOW_SERVER_PORT: 5000
+          GUNICORN_CMD_ARGS: "--timeout 120 --workers 2"
+          BACKEND_STORE_URI: "sqlite:///mlflow.db"
+          ARTIFACT_ROOT: "./mlruns"
+          MLFLOW_SERVER_HOST: "0.0.0.0"
+          MLFLOW_SERVER_PORT: "5000"
+        volumes:
+          - /tmp/mlflow:/mlflow
 
     steps:
+      - name: Debug network
+        run: |
+          docker ps -a
+          netstat -tulpn
+          curl -v http://localhost:5000/health || true
+        
       - name: Checkout repository
         uses: actions/checkout@v3
         
@@ -32,7 +44,7 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Install uv  # Ajout de l'installation de uv
+      - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           
@@ -41,18 +53,21 @@ jobs:
           uv pip install --upgrade pip
           uv pip install .[dev]
           
-      - name: Wait for MLflow
+      - name: Verify MLflow availability
         run: |
-          for i in {1..6}; do
-            if curl -s -f http://localhost:5000/health; then
-              echo "MLflow is ready"
-              exit 0
+          for i in {1..10}; do
+            echo "Attempt $i to connect to MLflow..."
+            if curl -v http://localhost:5000/health 2>&1; then
+              echo "MLflow is responding!"
+              break
             fi
-            echo "Waiting for MLflow... attempt $i"
-            sleep 10
+            if [ $i -eq 10 ]; then
+              echo "MLflow failed to start after 10 attempts"
+              docker logs $(docker ps -aq --filter "ancestor=ghcr.io/mlflow/mlflow:v2.19.0")
+              exit 1
+            fi
+            sleep 5
           done
-          echo "MLflow failed to start"
-          exit 1
           
       - name: Lint code with Ruff
         run: |
