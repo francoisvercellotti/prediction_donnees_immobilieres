@@ -26,11 +26,9 @@ jobs:
           
       - name: Install dependencies
         run: |
-          source .venv/bin/activate
-          export PATH="$HOME/.cargo/bin:$PATH"
-          uv pip install --upgrade pip
-          uv pip install .[dev]
-          pip list  # Pour vérifier que tout est bien installé
+          python -m pip install --upgrade pip
+          pip install ruff pytest mlflow
+          pip install -e .
           
       - name: Start MLflow
         run: |
@@ -47,15 +45,13 @@ jobs:
             sleep 5
           done
           
+       # Étape 5 : Linting avec Ruff
       - name: Lint code with Ruff
         run: |
-          source .venv/bin/activate
-          which ruff  # Pour debug
-          python -m ruff check .
-          
+          ruff check .
+      # Étape 6 : Exécuter les tests avec pytest
       - name: Test with pytest
         env:
           MLFLOW_TRACKING_URI: http://localhost:5000
         run: |
-          source .venv/bin/activate
-          python -m pytest
+          pytest
