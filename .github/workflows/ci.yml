@@ -9,33 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      mlflow:
-        image: ghcr.io/mlflow/mlflow:v2.19.0
-        ports:
-          - 5000:5000
-        options: >-
-          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1"
-          --health-interval 10s 
-          --health-timeout 5s 
-          --health-retries 10
-          --health-start-period 20s
-        env:
-          GUNICORN_CMD_ARGS: "--timeout 120 --workers 2"
-          BACKEND_STORE_URI: "sqlite:///mlflow.db"
-          ARTIFACT_ROOT: "./mlruns"
-          MLFLOW_SERVER_HOST: "0.0.0.0"
-          MLFLOW_SERVER_PORT: "5000"
-        volumes:
-          - /tmp/mlflow:/mlflow
-
     steps:
-      - name: Debug network
-        run: |
-          docker ps -a
-          netstat -tulpn
-          curl -v http://localhost:5000/health || true
-        
       - name: Checkout repository
         uses: actions/checkout@v3
         
@@ -53,19 +27,17 @@ jobs:
           uv pip install --upgrade pip
           uv pip install .[dev]
           
-      - name: Verify MLflow availability
+      - name: Start MLflow
         run: |
+          mkdir -p mlruns
+          mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns &
+          echo "Waiting for MLflow to start..."
           for i in {1..10}; do
-            echo "Attempt $i to connect to MLflow..."
-            if curl -v http://localhost:5000/health 2>&1; then
-              echo "MLflow is responding!"
+            if curl -s -f http://localhost:5000/health; then
+              echo "MLflow is ready!"
               break
             fi
-            if [ $i -eq 10 ]; then
-              echo "MLflow failed to start after 10 attempts"
-              docker logs $(docker ps -aq --filter "ancestor=ghcr.io/mlflow/mlflow:v2.19.0")
-              exit 1
-            fi
+            echo "Attempt $i - MLflow not ready yet..."
             sleep 5
           done
           
