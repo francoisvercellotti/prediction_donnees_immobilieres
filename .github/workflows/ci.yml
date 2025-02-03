@@ -1,5 +1,4 @@
 name: CI Workflow
-
 on:
   push:
     branches:
@@ -11,6 +10,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    services:
+      mlflow:
+        image: ghcr.io/mlflow/mlflow:v2.9.2
+        ports:
+          - 5000:5000
+        options: --health-cmd "curl -f http://localhost:5000/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       # Étape 1 : Cloner le dépôt
@@ -27,13 +33,22 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest ruff
+          pip install pytest ruff mlflow
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      # Étape 4 : Linting avec Ruff
+
+      # Étape 4 : Attendre que MLflow soit prêt
+      - name: Wait for MLflow
+        run: |
+          timeout 30 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:5000/health)" != "200" ]]; do sleep 5; done' || false
+
+      # Étape 5 : Linting avec Ruff
       - name: Lint code with Ruff
         run: |
           ruff check .
-      # Étape 5 : Exécuter les tests avec pytest
+
+      # Étape 6 : Exécuter les tests avec pytest
       - name: Test with pytest
+        env:
+          MLFLOW_TRACKING_URI: http://localhost:5000
         run: |
-          pytestmon workflow
+          pytest
