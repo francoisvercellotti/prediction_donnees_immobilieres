@@ -6,47 +6,58 @@ on:
   pull_request:
     branches:
       - main
-
 jobs:
   test:
     runs-on: ubuntu-latest
-
     services:
       mlflow:
-        image: ghcr.io/mlflow/mlflow:v2.9.2
+        image: ghcr.io/mlflow/mlflow:v2.19.0  # Mise à jour pour correspondre à votre version
         ports:
           - 5000:5000
-        options: --health-cmd "curl -f http://localhost:5000/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+        options: >-
+          --health-cmd "curl -s -f http://127.0.0.1:5000/health || exit 1"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 5
+        env:
+          MLFLOW_SERVER_HOST: 0.0.0.0
+          MLFLOW_SERVER_PORT: 5000
 
     steps:
-      # Étape 1 : Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Étape 2 : Configurer Python
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      # Étape 3 : Installer les dépendances
-      - name: Install dependencies
+          
+      - name: Install uv  # Ajout de l'installation de uv
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest ruff mlflow
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      # Étape 4 : Attendre que MLflow soit prêt
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          
+      - name: Install dependencies with uv
+        run: |
+          uv pip install --upgrade pip
+          uv pip install .[dev]
+          
       - name: Wait for MLflow
         run: |
-          timeout 30 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:5000/health)" != "200" ]]; do sleep 5; done' || false
-
-      # Étape 5 : Linting avec Ruff
+          for i in {1..6}; do
+            if curl -s -f http://localhost:5000/health; then
+              echo "MLflow is ready"
+              exit 0
+            fi
+            echo "Waiting for MLflow... attempt $i"
+            sleep 10
+          done
+          echo "MLflow failed to start"
+          exit 1
+          
       - name: Lint code with Ruff
         run: |
           ruff check .
-
-      # Étape 6 : Exécuter les tests avec pytest
+          
       - name: Test with pytest
         env:
           MLFLOW_TRACKING_URI: http://localhost:5000
