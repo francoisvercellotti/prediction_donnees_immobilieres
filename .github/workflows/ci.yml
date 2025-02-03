@@ -48,10 +48,10 @@ jobs:
       # Étape 5 : Linting avec Ruff
       - name: Lint code with Ruff
         run: |
-          ruff check .
+          uv ruff check .
       # Étape 6 : Exécuter les tests avec pytest
       - name: Test with pytest
         env:
           MLFLOW_TRACKING_URI: http://localhost:5000
         run: |
-          pytest
+          uv run pytest .
