@@ -18,17 +18,21 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Install uv
+      - name: Install and setup uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+          uv venv
+          . .venv/bin/activate
           
       - name: Install dependencies with uv
         run: |
+          . .venv/bin/activate
           uv pip install --upgrade pip
           uv pip install .[dev]
           
       - name: Start MLflow
         run: |
+          . .venv/bin/activate
           mkdir -p mlruns
           mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns &
           echo "Waiting for MLflow to start..."
@@ -43,10 +47,13 @@ jobs:
           
       - name: Lint code with Ruff
         run: |
+          . .venv/bin/activate
           ruff check .
           
       - name: Test with pytest
         env:
           MLFLOW_TRACKING_URI: http://localhost:5000
         run: |
+          . .venv/bin/activate
           pytest
+        
