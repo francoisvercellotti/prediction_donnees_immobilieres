@@ -133,23 +133,19 @@ def train_and_log_model_with_mlflow(
         # Enregistrement des scores de validation croisée
         mlflow.log_metrics(scores_dict)
 
-        # Log des jeux de données
-        X_train_file = "X_train.parquet"
-        X_test_file = "X_test.parquet"
-        y_train_file = "y_train.parquet"
-        y_test_file = "y_test.parquet"
+        preprocessed_dir = "data/interim/preprocessed"
+        os.makedirs(preprocessed_dir, exist_ok=True)  # Créer le dossier s'il n'existe pas
 
-        # Enregistrement des DataFrames en fichiers parquet
+        X_train_file = os.path.join(preprocessed_dir, "X_train.parquet")
+        X_test_file = os.path.join(preprocessed_dir, "X_test.parquet")
+        y_train_file = os.path.join(preprocessed_dir, "y_train.parquet")
+        y_test_file = os.path.join(preprocessed_dir, "y_test.parquet")
+
+        # Enregistrement des DataFrames en fichiers parquet dans le dossier spécifié
         X_train.to_parquet(X_train_file, index=False)
         X_test.to_parquet(X_test_file, index=False)
-
-        # Convertir y_train et y_test en DataFrame avant de les enregistrer
-        y_train_df = y_train.to_frame()
-        y_test_df = y_test.to_frame()
-
-        # Enregistrement des fichiers parquet pour y_train et y_test
-        y_train_df.to_parquet(y_train_file, index=False)
-        y_test_df.to_parquet(y_test_file, index=False)
+        y_train.to_frame().to_parquet(y_train_file, index=False)
+        y_test.to_frame().to_parquet(y_test_file, index=False)
 
         # Log des artefacts dans MLflow
         mlflow.log_artifact(X_train_file)
