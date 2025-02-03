@@ -5,7 +5,6 @@ import pytest
 import pandas as pd
 import numpy as np
 from unittest.mock import patch
-from contextlib import nullcontext
 from sklearn.linear_model import LinearRegression
 from src.evaluate_model import error_analysis
 
