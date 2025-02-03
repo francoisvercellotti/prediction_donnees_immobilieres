@@ -29,8 +29,13 @@ def test_error_analysis_metrics():
     """Teste la fonction error_analysis sans générer de fichiers ni de runs MLflow"""
     X_train, X_test, y_train, y_test, model = create_test_data()
 
-    # Exécution de la fonction sans MLflow ni fichiers en patchant les appels à MLflow
-    with patch('mlflow.start_run'), \
+    # Création d'un objet fictif pour simuler l'expérience MLflow
+    FakeExperiment = type("FakeExperiment", (), {"experiment_id": "fake_experiment_id"})
+    fake_experiment = FakeExperiment()
+
+    # Exécution de la fonction en patchant les appels MLflow et en simulant get_experiment_by_name
+    with patch('mlflow.get_experiment_by_name', return_value=fake_experiment), \
+         patch('mlflow.start_run'), \
          patch('mlflow.log_metrics'), \
          patch('mlflow.log_params'), \
          patch('mlflow.log_artifacts'), \
