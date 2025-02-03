@@ -31,7 +31,7 @@ def test_error_analysis_metrics():
     X_train, X_test, y_train, y_test, model = create_test_data()
 
     # Exécution de la fonction sans MLflow ni fichiers en patchant les appels à MLflow
-    with patch('mlflow.start_run', return_value=nullcontext()), \
+    with patch('mlflow.start_run'), \
          patch('mlflow.log_metrics'), \
          patch('mlflow.log_params'), \
          patch('mlflow.log_artifacts'), \
@@ -39,7 +39,7 @@ def test_error_analysis_metrics():
          patch('os.makedirs'), \
          patch('matplotlib.pyplot.close'):
 
-        metrics = error_analysis(model, X_train, y_train, X_test, y_test, run_mlflow=False)
+        metrics = error_analysis(model, X_train, y_train, X_test, y_test)
 
         # Vérifications des métriques
         expected_metrics = ['Train RMSE', 'Train MAE', 'Train R2',

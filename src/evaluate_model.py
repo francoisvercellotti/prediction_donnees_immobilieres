@@ -154,7 +154,7 @@ def plot_regression_error(y_true, y_pred, title, filename, output_dir):
     plt.savefig(os.path.join(output_dir, filename))
     plt.close()
 
-def error_analysis(model, X_train, y_train, X_test, y_test,run_mlflow=True):
+def error_analysis(model, X_train, y_train, X_test, y_test):
     """Effectue l'analyse des erreurs et enregistre les résultats dans MLflow."""
     # Utilisation d'un répertoire temporaire
     with tempfile.TemporaryDirectory() as output_dir:
