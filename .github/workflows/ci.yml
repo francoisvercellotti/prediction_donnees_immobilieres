@@ -45,15 +45,13 @@ jobs:
             sleep 5
           done
           
+      # Étape 5 : Linting avec Ruff
       - name: Lint code with Ruff
         run: |
-          . .venv/bin/activate
           ruff check .
-          
+      # Étape 6 : Exécuter les tests avec pytest
       - name: Test with pytest
         env:
           MLFLOW_TRACKING_URI: http://localhost:5000
         run: |
-          . .venv/bin/activate
           pytest
-        
