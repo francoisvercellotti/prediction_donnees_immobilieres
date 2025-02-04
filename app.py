@@ -117,7 +117,7 @@ with col1:
                         region_found = get_region_from_coordinates(st.session_state.lat, st.session_state.lon)
                         normalized_region = normalize_text(region_found)
 
-                        st.success(f"📍 Coordonnées trouvées")
+                        st.success("📍 Coordonnées trouvées")
                         st.info(f"🌍 Région : {region_found}")
 
                         if normalized_region in REGIONS_AUTORISÉES:
