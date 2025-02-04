@@ -1,4 +1,5 @@
 import os
+import pickle
 import sys
 import joblib
 import logging
@@ -31,10 +32,15 @@ def preprocess_data(df: pd.DataFrame, columns_to_encode: list) -> tuple:
     )
 
     # Sauvegarde des encodeurs
-    os.makedirs("models", exist_ok=True)
-    joblib.dump(encoders, ENCODER_PATH)
-    logging.info(f"Encodeurs sauvegardés dans {ENCODER_PATH}")
+    model_dir = "models"
+    os.makedirs(model_dir, exist_ok=True)
 
+    encoder_path = os.path.join(model_dir, "encoders.pickle")
+
+    with open(encoder_path, "wb") as f:
+        pickle.dump(encoders, f)
+
+    logging.info(f"Encodeurs sauvegardés dans {encoder_path}")
     return X_train, X_test, y_train_reg, y_test_reg, y_train_cls, y_test_cls
 
 if __name__ == "__main__":

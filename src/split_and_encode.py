@@ -83,7 +83,9 @@ def split_and_encode(df: pd.DataFrame, target_classification: str, target_regres
 
             logging.info(f"Encodage de la colonne '{col}'.")
             X_train, encoder = encode_column(X_train, col)
-            X_test, _ = encode_column(X_test, col, encoder.get(col))
+            X_test, _ = encode_column(X_test, col, encoder[col])  # Utilisation de l'encodeur déjà appris
+
+            # ✅ Stocker l'encodeur correctement
             encoders[col] = encoder[col]
 
     logging.info("Encodage terminé. Dimensions finales:")
