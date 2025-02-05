@@ -1,15 +1,23 @@
+import os
 import mlflow.pyfunc
+import mlflow.sklearn
 import pandas as pd
 import streamlit as st
 import pickle
 import requests
 import unicodedata
 import numpy as np
+import shap
+import matplotlib.pyplot as plt
 
+# -----------------------------------------------------------------------------
 # Configuration de la page Streamlit
+# -----------------------------------------------------------------------------
 st.set_page_config(layout="wide", page_title="Prédiction Prix Immobilier", page_icon="🏠")
 
-# Style CSS personnalisé
+# -----------------------------------------------------------------------------
+# Ajout d'un style CSS personnalisé
+# -----------------------------------------------------------------------------
 st.markdown("""
     <style>
     .main {
@@ -25,60 +33,106 @@ st.markdown("""
     .stNumberInput, .stSelectbox {
         background-color: transparent !important;
     }
+    .shap-container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Charger les encodeurs sauvegardés
+# -----------------------------------------------------------------------------
+# Chargement des encodeurs sauvegardés
+# -----------------------------------------------------------------------------
 with open("models/encoders.pickle", "rb") as f:
     encoders = pickle.load(f)
 
+# On récupère les encodeurs pour les variables catégorielles
 type_batiment_encoder = encoders["type_batiment"]
 region_encoder = encoders["nom_region"]
 
-# Définir l'URI du modèle MLflow
-LOGGED_MODEL_URI = "runs:/dbe54e3229dc471fbf49aac749a20477/model"
+# -----------------------------------------------------------------------------
+# Définition de l'URI du modèle MLflow
+# -----------------------------------------------------------------------------
+MODEL_URI = "runs:/dbe54e3229dc471fbf49aac749a20477/model"
 
-# Charger automatiquement le modèle
-@st.cache_resource
-def load_model():
-    try:
-        model = mlflow.pyfunc.load_model(LOGGED_MODEL_URI)
-        return model
-    except Exception as e:
-        st.error(f"Erreur lors du chargement du modèle : {e}")
-        return None
-
+# -----------------------------------------------------------------------------
+# Fonctions utilitaires
+# -----------------------------------------------------------------------------
 def normalize_text(text):
+    """
+    Normalise un texte en le mettant en minuscules et en supprimant les accents.
+
+    Paramètres
+    ----------
+    text : str
+        Le texte à normaliser.
+
+    Retourne
+    -------
+    str
+        Le texte normalisé.
+    """
     text = text.lower()
+    # Supprime les accents en utilisant unicodedata
     text = ''.join(c for c in unicodedata.normalize('NFD', text)
-                  if unicodedata.category(c) != 'Mn')
+                   if unicodedata.category(c) != 'Mn')
+    # Supprime les espaces superflus
     text = ' '.join(text.split())
     return text
 
 def get_coordinates(address):
+    """
+    Récupère les coordonnées (latitude et longitude) d'une adresse via l'API Nominatim.
+
+    Paramètres
+    ----------
+    address : str
+        L'adresse à rechercher.
+
+    Retourne
+    -------
+    tuple of float or (None, None)
+        Un tuple (latitude, longitude) si l'adresse est trouvée, sinon (None, None).
+    """
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": address, "format": "json", "limit": 1}
     headers = {'User-Agent': 'PrixImmobilierApp/1.0'}
     response = requests.get(url, params=params, headers=headers)
-
     if response.status_code == 200 and response.json():
         data = response.json()[0]
         return float(data["lat"]), float(data["lon"])
     return None, None
 
 def get_region_from_coordinates(lat, lon):
+    """
+    Récupère la région à partir de coordonnées géographiques via l'API Nominatim.
+
+    Paramètres
+    ----------
+    lat : float
+        Latitude.
+    lon : float
+        Longitude.
+
+    Retourne
+    -------
+    str
+        La région (normalisée) ou "region inconnue" en cas d'échec.
+    """
     url = "https://nominatim.openstreetmap.org/reverse"
     params = {"lat": lat, "lon": lon, "format": "json"}
     headers = {'User-Agent': 'PrixImmobilierApp/1.0'}
     response = requests.get(url, params=params, headers=headers)
-
     if response.status_code == 200 and response.json():
+        # Extraction des informations d'adresse
         address_data = response.json().get("address", {})
         region = address_data.get("state", "Région inconnue")
         return normalize_text(region)
     return "region inconnue"
 
-# Régions autorisées
+# Ensemble des régions autorisées, normalisées
 REGIONS_AUTORISÉES = {normalize_text(region) for region in [
     "Nouvelle-Aquitaine",
     "Occitanie",
@@ -87,15 +141,299 @@ REGIONS_AUTORISÉES = {normalize_text(region) for region in [
     "Auvergne-Rhône-Alpes"
 ]}
 
+def shorten_feature_names(feature_names):
+    """
+    Raccourcit les noms des caractéristiques pour l'affichage dans le diagramme SHAP.
+
+    Paramètres
+    ----------
+    feature_names : list of str
+        Liste des noms de caractéristiques à transformer.
+
+    Retourne
+    -------
+    list of str
+        Liste des noms raccourcis.
+
+    Remplacements effectués :
+      - 'nom_region_Provence-Alpes-Côte d\'Azur' -> 'PACA'
+      - 'nom_region_Nouvelle-Aquitaine' -> 'Nouvelle-Aquit.'
+      - 'nom_region_Ile-de-France' -> 'IDF'
+      - 'prix_m2_moyen_mois_precedent' -> 'prix_m2_moy'
+      - 'nb_transactions_mois_precedent' -> 'nb_trans'
+      - 'surface_habitable' -> 'surface'
+      - 'type_batiment' -> 'type_bat'
+      - 'ville_demandee' -> 'ville'
+      - 'mois_transaction' -> 'mois'
+      - 'annee_transaction' -> 'annee'
+    """
+    replacements = {
+        'nom_region_Provence-Alpes-Côte d\'Azur': 'PACA',
+        'nom_region_Nouvelle-Aquitaine': 'Nouvelle-Aquit.',
+        'nom_region_Ile-de-France': 'IDF',
+        'prix_m2_moyen_mois_precedent': 'prix_m2_moy',
+        'nb_transactions_mois_precedent': 'nb_trans',
+        'surface_habitable': 'surface',
+        'type_batiment': 'type_bat',
+        'ville_demandee': 'ville',
+        'mois_transaction': 'mois',
+        'annee_transaction': 'annee'
+    }
+    shortened_names = []
+    # Pour chaque nom, appliquer tous les remplacements
+    for name in feature_names:
+        for old, new in replacements.items():
+            name = name.replace(old, new)
+        shortened_names.append(name)
+    return shortened_names
+
+def plot_regression_predictions(y_true, y_pred, title, filename, output_dir, user_pred=None):
+    """
+    Crée un graphique comparant les prédictions aux valeurs réelles, avec conversion en k€.
+
+    Les valeurs des axes sont converties en milliers d'euros (k€) en divisant par 1000.
+    De plus, sur la ligne idéale (y=x), une croix (marqueur 'X' en rouge) est affichée pour
+    indiquer la prédiction utilisateur après avoir multiplié cette valeur par 10.
+
+    Paramètres
+    ----------
+    y_true : array-like
+        Valeurs réelles.
+    y_pred : array-like
+        Prédictions générées par le modèle.
+    title : str
+        Titre du graphique.
+    filename : str
+        Nom du fichier dans lequel enregistrer le graphique.
+    output_dir : str
+        Répertoire où sauvegarder le graphique.
+    user_pred : float, optionnel
+        Prédiction utilisateur qui sera mise en évidence sur la ligne idéale.
+
+    Retourne
+    -------
+    matplotlib.figure.Figure
+        La figure du graphique de régression générée.
+    """
+    plt.figure(figsize=(8, 6))
+    # Conversion des valeurs en milliers d'euros (k€) pour les axes
+    conversion_factor = 10000.0
+    y_true_k = y_true / conversion_factor
+    y_pred_k = y_pred / conversion_factor
+
+    # Tracer les points de données
+    plt.scatter(y_true_k, y_pred_k, alpha=0.5, edgecolors="k", s=30)
+
+    # Tracer la ligne idéale (y=x)
+    x_vals = [y_true_k.min(), y_true_k.max()]
+    plt.plot(x_vals, x_vals, color="red", linestyle="--", label="Idéal")
+
+    # Si une prédiction utilisateur est fournie, ajuster sa valeur et la marquer
+    if user_pred is not None:
+        # Multiplier par 10 avant conversion pour la mise en évidence
+        user_pred_adjusted = user_pred * 10
+        user_pred_k = user_pred_adjusted / conversion_factor
+        plt.plot(user_pred_k, user_pred_k, marker='X', markersize=12, markeredgewidth=3,
+                 color='red', label="Prédiction actuelle")
+
+    plt.xlabel("Valeurs réelles (k€)")
+    plt.ylabel("Prédictions (k€)")
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, filename)
+    plt.savefig(filepath)
+    fig = plt.gcf()
+    plt.close(fig)
+    return fig
+
+def predict_prix_immobilier(
+    vefa: bool,
+    surface_habitable: int,
+    latitude: float,
+    longitude: float,
+    mois_transaction: int,
+    annee_transaction: int,
+    prix_m2_moyen_mois_precedent: float,
+    nb_transactions_mois_precedent: int,
+    ville_demandee: bool,
+    type_batiment: str,
+    region: str,
+    model_uri: str = MODEL_URI,
+    train_data_path: str = "data/interim/preprocessed/X_train.parquet",
+    show_plots: bool = True,
+    plot_reg: bool = True,
+    output_dir: str = "plots"
+):
+    """
+    Prédit le prix d'un bien immobilier et génère des explications.
+
+    Cette fonction effectue les étapes suivantes :
+      1. Charge les données d'entraînement (X_train) à partir d'un fichier parquet,
+         afin de pouvoir générer les explications SHAP.
+      2. Charge le modèle MLflow à partir de l'URI spécifiée.
+      3. Encode les variables catégorielles (type de bâtiment et région) à l'aide
+         des encodeurs préalablement sauvegardés.
+      4. Construit un DataFrame d'entrée aligné avec les colonnes de l'ensemble d'entraînement.
+      5. Effectue la prédiction sur les données d'entrée.
+      6. (Optionnel) Génère un diagramme waterfall SHAP pour expliquer l'impact de chaque
+         caractéristique sur la prédiction.
+      7. (Optionnel) Charge X_test et y_test pour créer un graphique de régression comparant
+         les prédictions aux valeurs réelles. Sur la ligne idéale, une croix est affichée pour
+         indiquer la prédiction utilisateur (après ajustement).
+
+    Paramètres
+    ----------
+    vefa : bool
+        Indique si le bien est en VEFA (Vente en l'état futur d'achèvement).
+    surface_habitable : int
+        Surface habitable du bien en m².
+    latitude : float
+        Latitude du bien.
+    longitude : float
+        Longitude du bien.
+    mois_transaction : int
+        Mois de la transaction.
+    annee_transaction : int
+        Année de la transaction.
+    prix_m2_moyen_mois_precedent : float
+        Prix moyen au m² du mois précédent.
+    nb_transactions_mois_precedent : int
+        Nombre de transactions le mois précédent.
+    ville_demandee : bool
+        Indique si la ville est demandée.
+    type_batiment : str
+        Type de bâtiment (ex. "Appartement", "Maison").
+    region : str
+        Région dans laquelle se situe le bien.
+    model_uri : str, optionnel
+        URI du modèle MLflow à charger (par défaut, MODEL_URI).
+    train_data_path : str, optionnel
+        Chemin vers le fichier parquet contenant X_train (par défaut "data/interim/preprocessed/X_train.parquet").
+    show_plots : bool, optionnel
+        Si True, génère et retourne le diagramme SHAP (par défaut True).
+    plot_reg : bool, optionnel
+        Si True, génère et retourne le graphique de régression sur X_test et y_test (par défaut True).
+    output_dir : str, optionnel
+        Répertoire dans lequel enregistrer le graphique de régression (par défaut "plots").
+
+    Retourne
+    -------
+    tuple
+        Un tuple contenant :
+         - La prédiction (prix estimé) sous forme de float.
+         - La figure du diagramme SHAP (ou None si show_plots est False).
+         - La figure du graphique de régression (ou None si plot_reg est False).
+
+    Exceptions
+    ----------
+    Exception
+        Lève une exception avec un message explicatif en cas d'erreur durant la prédiction.
+    """
+    try:
+        # Chargement des données d'entraînement pour la génération des explications SHAP
+        X_train = pd.read_parquet(train_data_path)
+        train_columns = X_train.columns.tolist()
+
+        # Chargement du modèle MLflow
+        loaded_model = mlflow.sklearn.load_model(model_uri)
+
+        # Encodage des variables catégorielles via les encodeurs sauvegardés
+        type_batiment_encoded = type_batiment_encoder.transform([[type_batiment]])[0]
+        region_encoded = region_encoder.transform([[region]])[0]
+
+        # Création d'un DataFrame d'entrée avec les données utilisateur
+        input_data = pd.DataFrame({
+            "vefa": [np.int32(vefa)],
+            "surface_habitable": [np.int32(surface_habitable)],
+            "latitude": [np.float64(latitude)],
+            "longitude": [np.float64(longitude)],
+            "mois_transaction": [np.int32(mois_transaction)],
+            "annee_transaction": [np.int32(annee_transaction)],
+            "prix_m2_moyen_mois_precedent": [np.float64(prix_m2_moyen_mois_precedent)],
+            "nb_transactions_mois_precedent": [np.int64(nb_transactions_mois_precedent)],
+            "ville_demandee": [np.int64(ville_demandee)]
+        })
+
+        # Ajout des colonnes encodées pour le type de bâtiment
+        for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]), type_batiment_encoded):
+            input_data[col] = np.int64(value)
+        # Ajout des colonnes encodées pour la région
+        for col, value in zip(region_encoder.get_feature_names_out(["nom_region"]), region_encoded):
+            input_data[col] = np.int64(value)
+
+        # Alignement du DataFrame d'entrée avec les colonnes d'entraînement
+        input_data_aligned = pd.DataFrame(columns=train_columns)
+        for col in train_columns:
+            if col in input_data.columns:
+                input_data_aligned[col] = input_data[col]
+            else:
+                # Si une colonne manque, on l'initialise à 0
+                input_data_aligned[col] = 0
+
+        # Effectue la prédiction sur l'entrée utilisateur
+        prediction = loaded_model.predict(input_data_aligned)
+
+        shap_fig = None
+        if show_plots:
+            # Création de l'explainer SHAP avec X_train
+            explainer = shap.Explainer(loaded_model, X_train)
+            # Calcul des valeurs SHAP pour l'entrée alignée
+            shap_values = explainer(input_data_aligned)
+            # Raccourcissement des noms de colonnes pour une meilleure lisibilité dans le diagramme
+            shortened_names = shorten_feature_names(input_data_aligned.columns)
+            plt.figure(figsize=(14, 10))
+            shap_values.feature_names = shortened_names
+            # Génération du diagramme waterfall SHAP (affiche jusqu'à 6 caractéristiques)
+            shap.plots.waterfall(
+                shap_values[0],
+                show=False,
+                max_display=6,
+            )
+            plt.xticks(fontsize=10)  # Ajuste la taille du texte sur l'axe X
+            plt.yticks(fontsize=10)  # Ajuste la taille du texte sur l'axe Y
+            plt.subplots_adjust(left=0.5)  # Augmente l'écart entre les noms et le diagramme
+            plt.title("Impact des caractéristiques sur la prédiction", fontsize=16, pad=30)
+            shap_fig = plt.gcf()
+            plt.close(shap_fig)
+
+        regression_fig = None
+        if plot_reg:
+            # Chargement de X_test et y_test (prétraités de la même manière que X_train)
+            X_test_path = "data/interim/preprocessed/X_test.parquet"
+            y_test_path = "data/interim/preprocessed/y_test.parquet"
+            X_test = pd.read_parquet(X_test_path)
+            y_test = pd.read_parquet(y_test_path)
+            # Si y_test est un DataFrame à une colonne, le convertir en Series
+            if isinstance(y_test, pd.DataFrame):
+                y_test = y_test.iloc[:, 0]
+            # Prédiction sur l'ensemble de test
+            y_test_pred = loaded_model.predict(X_test)
+            # Génération du graphique de régression
+            regression_fig = plot_regression_predictions(
+                y_true=y_test,
+                y_pred=y_test_pred,
+                title="Prédictions vs Valeurs Réelles sur X_test (en k€)",
+                filename="regression_plot.png",
+                output_dir=output_dir,
+                user_pred=prediction[0]
+            )
+
+        return prediction[0], shap_fig, regression_fig
+
+    except Exception as e:
+        raise Exception(f"Erreur lors de la prédiction : {str(e)}")
+
+# -----------------------------------------------------------------------------
 # Interface utilisateur Streamlit
+# -----------------------------------------------------------------------------
 st.title("🏠 Prédiction de Prix Immobilier")
 
-model = load_model()
-
-# Création des colonnes principales
+# Création de deux colonnes pour organiser l'interface (entrée et affichage)
 col1, col2 = st.columns([1, 2])
 
-# Initialiser les variables d'état
+# Initialisation des variables d'état dans la session Streamlit
 if 'region' not in st.session_state:
     st.session_state.region = None
 if 'lat' not in st.session_state:
@@ -104,22 +442,31 @@ if 'lon' not in st.session_state:
     st.session_state.lon = None
 if 'prediction' not in st.session_state:
     st.session_state.prediction = None
+if 'shap_fig' not in st.session_state:
+    st.session_state.shap_fig = None
+if 'regression_fig' not in st.session_state:
+    st.session_state.regression_fig = None
 
+# -----------------------------------------------------------------------------
+# Colonne 1 : Saisie des paramètres par l'utilisateur
+# -----------------------------------------------------------------------------
 with col1:
     st.markdown("### 📍 Localisation")
     with st.container():
+        # Saisie de l'adresse du bien
         address = st.text_input("Adresse du bien", placeholder="ex: 10 Rue de Rivoli, Paris")
         if st.button("🔍 Rechercher", key="search_button"):
             if address:
                 with st.spinner("Recherche de l'adresse..."):
+                    # Récupération des coordonnées à partir de l'adresse
                     st.session_state.lat, st.session_state.lon = get_coordinates(address)
                     if st.session_state.lat and st.session_state.lon:
+                        # Récupération et normalisation de la région à partir des coordonnées
                         region_found = get_region_from_coordinates(st.session_state.lat, st.session_state.lon)
                         normalized_region = normalize_text(region_found)
-
                         st.success("📍 Coordonnées trouvées")
                         st.info(f"🌍 Région : {region_found}")
-
+                        # Vérifier si la région est autorisée
                         if normalized_region in REGIONS_AUTORISÉES:
                             st.session_state.region = region_found
                         else:
@@ -127,80 +474,56 @@ with col1:
                             st.session_state.region = None
                     else:
                         st.error("❌ Adresse non trouvée")
-
+    # Si une région valide est sélectionnée, afficher les autres paramètres
     if st.session_state.region:
         st.markdown("### 🏡 Caractéristiques du bien")
-
-        # Utilisation de select_box pour VEFA
-        vefa = st.selectbox("VEFA",
-                           options=["Non", "Oui"],
-                           index=0)
+        # Sélection de la VEFA (Oui/Non)
+        vefa = st.selectbox("VEFA", options=["Non", "Oui"], index=0)
         vefa = 1 if vefa == "Oui" else 0
-
-        # Slider pour la surface
+        # Saisie de la surface habitable
         surface_habitable = st.slider("Surface habitable (m²)",
-                                    min_value=10,
-                                    max_value=500,
-                                    value=100,
-                                    step=5)
-
-        # Select box pour le type de bâtiment
-        type_batiment_selection = st.selectbox("Type de bâtiment",
-                                             options=["Appartement", "Maison"])
-
-        # Select box pour ville demandée
-        ville_demandee = st.selectbox("Ville demandée",
-                                    options=["Non", "Oui"])
+                                      min_value=10, max_value=500,
+                                      value=100, step=5)
+        # Sélection du type de bâtiment
+        type_batiment_selection = st.selectbox("Type de bâtiment", options=["Appartement", "Maison"])
+        # Sélection de la ville demandée
+        ville_demandee = st.selectbox("Ville demandée", options=["Non", "Oui"])
         ville_demandee = 1 if ville_demandee == "Oui" else 0
-
-        # Slider pour le prix
+        # Saisie du prix moyen au m² (mois précédent)
         prix_m2_moyen_mois_precedent = st.slider("Prix moyen au m² (mois précédent)",
-                                                min_value=1000,
-                                                max_value=15000,
-                                                value=3000,
-                                                step=100)
-
-        # Nombre de transactions avec number_input
-        nb_transactions_mois_precedent = st.number_input("Transactions (mois précédent)",
-                                                        min_value=0,
-                                                        max_value=1000,
-                                                        value=100,
-                                                        step=1)
-
-        # Date en deux colonnes
+                                                 min_value=1000, max_value=15000,
+                                                 value=3000, step=100)
+        # Saisie du nombre de transactions (mois précédent)
+        nb_transactions_mois_precedent = st.slider("Transactions (mois précédent)",
+                                                   min_value=0, max_value=1000,
+                                                   value=20, step=1)
+        # Sélection de la date via deux colonnes
         col_date1, col_date2 = st.columns(2)
         with col_date1:
             mois_transaction = st.selectbox("Mois", range(1, 13))
         with col_date2:
             annee_transaction = st.selectbox("Année", range(2023, 2026))
-
-        # Bouton de prédiction
+        # Bouton pour lancer la prédiction
         if st.button("🎯 Effectuer la prédiction"):
-            # Préparation des données
-            type_batiment_encoded = type_batiment_encoder.transform([[type_batiment_selection]])[0]
-            region_encoded = region_encoder.transform([[st.session_state.region]])[0]
-
-            input_data = pd.DataFrame({
-                "vefa": [np.int32(vefa)],
-                "surface_habitable": [np.int32(surface_habitable)],
-                "latitude": [np.float64(st.session_state.lat)],
-                "longitude": [np.float64(st.session_state.lon)],
-                "mois_transaction": [np.int32(mois_transaction)],
-                "annee_transaction": [np.int32(annee_transaction)],
-                "prix_m2_moyen_mois_precedent": [np.float64(prix_m2_moyen_mois_precedent)],
-                "nb_transactions_mois_precedent": [np.int64(nb_transactions_mois_precedent)],
-                "ville_demandee": [np.int64(ville_demandee)]
-            })
-
-            for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]), type_batiment_encoded):
-                input_data[col] = np.int64(value)
-
-            for col, value in zip(region_encoder.get_feature_names_out(["nom_region"]), region_encoded):
-                input_data[col] = np.int64(value)
-
             try:
-                predictions = model.predict(input_data)
-                st.session_state.prediction = predictions[0]
+                prediction, shap_fig, regression_fig = predict_prix_immobilier(
+                    vefa=bool(vefa),
+                    surface_habitable=surface_habitable,
+                    latitude=st.session_state.lat,
+                    longitude=st.session_state.lon,
+                    mois_transaction=mois_transaction,
+                    annee_transaction=annee_transaction,
+                    prix_m2_moyen_mois_precedent=prix_m2_moyen_mois_precedent,
+                    nb_transactions_mois_precedent=nb_transactions_mois_precedent,
+                    ville_demandee=bool(ville_demandee),
+                    type_batiment=type_batiment_selection,
+                    region=st.session_state.region,
+                    show_plots=True,
+                    plot_reg=True
+                )
+                st.session_state.prediction = prediction
+                st.session_state.shap_fig = shap_fig
+                st.session_state.regression_fig = regression_fig
                 st.session_state.current_params = {
                     'surface': surface_habitable,
                     'type': type_batiment_selection,
@@ -215,11 +538,13 @@ with col1:
             except Exception as e:
                 st.error(f"Erreur lors de la prédiction : {str(e)}")
 
+# -----------------------------------------------------------------------------
+# Colonne 2 : Affichage des résultats de la prédiction
+# -----------------------------------------------------------------------------
 with col2:
-    if st.session_state.region and st.session_state.lat and st.session_state.lon and hasattr(st.session_state, 'prediction'):
+    if st.session_state.region and st.session_state.lat and st.session_state.lon and st.session_state.prediction is not None:
         st.markdown("### 📊 Résultats de la prédiction")
-
-        # Affichage du prix prédit
+        # Affichage du prix estimé
         st.markdown(f"""
         <div class="prediction-box">
             <h2>Prix estimé</h2>
@@ -227,21 +552,26 @@ with col2:
             <p>Soit environ {(st.session_state.prediction/st.session_state.current_params['surface']):,.0f} €/m²</p>
         </div>
         """, unsafe_allow_html=True)
-
-        # Récapitulatif des caractéristiques principales
+        # Affichage d'un récapitulatif des caractéristiques saisies
         st.markdown("### 📋 Récapitulatif")
         recap_col1, recap_col2 = st.columns(2)
-
         with recap_col1:
             st.write("**Caractéristiques principales:**")
             st.write(f"- Surface: {st.session_state.current_params['surface']} m²")
             st.write(f"- Type: {st.session_state.current_params['type']}")
             st.write(f"- VEFA: {'Oui' if st.session_state.current_params['vefa'] else 'Non'}")
             st.write(f"- Date: {st.session_state.current_params['mois']}/{st.session_state.current_params['annee']}")
-
         with recap_col2:
             st.write("**Localisation et marché:**")
             st.write(f"- Région: {st.session_state.current_params['region']}")
             st.write(f"- Prix moyen du marché: {st.session_state.current_params['prix_m2']} €/m²")
             st.write(f"- Ville demandée: {'Oui' if st.session_state.current_params['ville_demandee'] else 'Non'}")
             st.write(f"- Transactions: {st.session_state.current_params['transactions']}")
+        # Affichage du diagramme SHAP si disponible
+        if st.session_state.shap_fig is not None:
+            st.markdown("### 🔍 Explication de la prédiction (SHAP)")
+            st.pyplot(st.session_state.shap_fig)
+        # Affichage du graphique de régression si disponible
+        if st.session_state.regression_fig is not None:
+            st.markdown("### 📈 Performance sur X_test (en k€)")
+            st.pyplot(st.session_state.regression_fig)

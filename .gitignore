@@ -5,6 +5,10 @@ build/
 dist/
 wheels/
 *.egg-info
+
+# Fichiers et dossiers spécifiques aux éditeurs
+.vscode/
+
 # MLflow runs directory
 mlruns/
 
