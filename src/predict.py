@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 import shap
 import matplotlib.pyplot as plt
-from mlflow.pyfunc import PyFuncModel
+
 
 def load_encoders(encoder_path):
     """
@@ -132,6 +132,8 @@ def predict_prix_immobilier(
             )
 
             # Ajustement du layout pour augmenter l'espace entre le texte et les valeurs
+            plt.xticks(fontsize=10)  # Ajuste la taille du texte sur l'axe X
+            plt.yticks(fontsize=10)  # Ajuste la taille du texte sur l'axe Y
             plt.subplots_adjust(left=0.5)  # Augmente l'écart entre les noms et le diagramme
             plt.title("Impact des caractéristiques sur la prédiction", fontsize=16, pad=30)
             plt.show()
