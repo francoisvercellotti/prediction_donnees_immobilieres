@@ -1,6 +1,5 @@
 import os
 import joblib
-import mlflow.sklearn
 import pandas as pd
 import streamlit as st
 import pickle
