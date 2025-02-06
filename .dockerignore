@@ -1,0 +1,12 @@
+# Ignore les fichiers pycache et les fichiers .pyc
+__pycache__
+*.pyc
+
+# Ignore les répertoires de Git et les fichiers associés
+.git
+
+# Ignore les fichiers de configuration d'environnement locaux
+.env
+
+# Ignore l'environnement virtuel
+venv/

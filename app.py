@@ -1,5 +1,5 @@
 import os
-import mlflow.pyfunc
+import joblib
 import mlflow.sklearn
 import pandas as pd
 import streamlit as st
@@ -53,9 +53,9 @@ type_batiment_encoder = encoders["type_batiment"]
 region_encoder = encoders["nom_region"]
 
 # -----------------------------------------------------------------------------
-# Définition de l'URI du modèle MLflow
+# Définition du chemin du modèle MLflow
 # -----------------------------------------------------------------------------
-MODEL_URI = "runs:/dbe54e3229dc471fbf49aac749a20477/model"
+MODEL_PATH = "models/model.pkl"
 
 # -----------------------------------------------------------------------------
 # Fonctions utilitaires
@@ -260,90 +260,20 @@ def predict_prix_immobilier(
     ville_demandee: bool,
     type_batiment: str,
     region: str,
-    model_uri: str = MODEL_URI,
-    train_data_path: str = "data/interim/preprocessed/X_train.parquet",
     show_plots: bool = True,
     plot_reg: bool = True,
     output_dir: str = "plots"
 ):
-    """
-    Prédit le prix d'un bien immobilier et génère des explications.
-
-    Cette fonction effectue les étapes suivantes :
-      1. Charge les données d'entraînement (X_train) à partir d'un fichier parquet,
-         afin de pouvoir générer les explications SHAP.
-      2. Charge le modèle MLflow à partir de l'URI spécifiée.
-      3. Encode les variables catégorielles (type de bâtiment et région) à l'aide
-         des encodeurs préalablement sauvegardés.
-      4. Construit un DataFrame d'entrée aligné avec les colonnes de l'ensemble d'entraînement.
-      5. Effectue la prédiction sur les données d'entrée.
-      6. (Optionnel) Génère un diagramme waterfall SHAP pour expliquer l'impact de chaque
-         caractéristique sur la prédiction.
-      7. (Optionnel) Charge X_test et y_test pour créer un graphique de régression comparant
-         les prédictions aux valeurs réelles. Sur la ligne idéale, une croix est affichée pour
-         indiquer la prédiction utilisateur (après ajustement).
-
-    Paramètres
-    ----------
-    vefa : bool
-        Indique si le bien est en VEFA (Vente en l'état futur d'achèvement).
-    surface_habitable : int
-        Surface habitable du bien en m².
-    latitude : float
-        Latitude du bien.
-    longitude : float
-        Longitude du bien.
-    mois_transaction : int
-        Mois de la transaction.
-    annee_transaction : int
-        Année de la transaction.
-    prix_m2_moyen_mois_precedent : float
-        Prix moyen au m² du mois précédent.
-    nb_transactions_mois_precedent : int
-        Nombre de transactions le mois précédent.
-    ville_demandee : bool
-        Indique si la ville est demandée.
-    type_batiment : str
-        Type de bâtiment (ex. "Appartement", "Maison").
-    region : str
-        Région dans laquelle se situe le bien.
-    model_uri : str, optionnel
-        URI du modèle MLflow à charger (par défaut, MODEL_URI).
-    train_data_path : str, optionnel
-        Chemin vers le fichier parquet contenant X_train (par défaut "data/interim/preprocessed/X_train.parquet").
-    show_plots : bool, optionnel
-        Si True, génère et retourne le diagramme SHAP (par défaut True).
-    plot_reg : bool, optionnel
-        Si True, génère et retourne le graphique de régression sur X_test et y_test (par défaut True).
-    output_dir : str, optionnel
-        Répertoire dans lequel enregistrer le graphique de régression (par défaut "plots").
-
-    Retourne
-    -------
-    tuple
-        Un tuple contenant :
-         - La prédiction (prix estimé) sous forme de float.
-         - La figure du diagramme SHAP (ou None si show_plots est False).
-         - La figure du graphique de régression (ou None si plot_reg est False).
-
-    Exceptions
-    ----------
-    Exception
-        Lève une exception avec un message explicatif en cas d'erreur durant la prédiction.
-    """
     try:
-        # Chargement des données d'entraînement pour la génération des explications SHAP
-        X_train = pd.read_parquet(train_data_path)
+        X_train = pd.read_parquet("data/interim/preprocessed/X_train.parquet")
         train_columns = X_train.columns.tolist()
 
-        # Chargement du modèle MLflow
-        loaded_model = mlflow.sklearn.load_model(model_uri)
+        # Load model using joblib instead of MLflow
+        loaded_model = joblib.load(MODEL_PATH)
 
-        # Encodage des variables catégorielles via les encodeurs sauvegardés
         type_batiment_encoded = type_batiment_encoder.transform([[type_batiment]])[0]
         region_encoded = region_encoder.transform([[region]])[0]
 
-        # Création d'un DataFrame d'entrée avec les données utilisateur
         input_data = pd.DataFrame({
             "vefa": [np.int32(vefa)],
             "surface_habitable": [np.int32(surface_habitable)],
@@ -356,61 +286,46 @@ def predict_prix_immobilier(
             "ville_demandee": [np.int64(ville_demandee)]
         })
 
-        # Ajout des colonnes encodées pour le type de bâtiment
         for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]), type_batiment_encoded):
             input_data[col] = np.int64(value)
-        # Ajout des colonnes encodées pour la région
         for col, value in zip(region_encoder.get_feature_names_out(["nom_region"]), region_encoded):
             input_data[col] = np.int64(value)
 
-        # Alignement du DataFrame d'entrée avec les colonnes d'entraînement
         input_data_aligned = pd.DataFrame(columns=train_columns)
         for col in train_columns:
             if col in input_data.columns:
                 input_data_aligned[col] = input_data[col]
             else:
-                # Si une colonne manque, on l'initialise à 0
                 input_data_aligned[col] = 0
 
-        # Effectue la prédiction sur l'entrée utilisateur
         prediction = loaded_model.predict(input_data_aligned)
 
         shap_fig = None
         if show_plots:
-            # Création de l'explainer SHAP avec X_train
             explainer = shap.Explainer(loaded_model, X_train)
-            # Calcul des valeurs SHAP pour l'entrée alignée
             shap_values = explainer(input_data_aligned)
-            # Raccourcissement des noms de colonnes pour une meilleure lisibilité dans le diagramme
             shortened_names = shorten_feature_names(input_data_aligned.columns)
             plt.figure(figsize=(14, 10))
             shap_values.feature_names = shortened_names
-            # Génération du diagramme waterfall SHAP (affiche jusqu'à 6 caractéristiques)
             shap.plots.waterfall(
                 shap_values[0],
                 show=False,
                 max_display=6,
             )
-            plt.xticks(fontsize=10)  # Ajuste la taille du texte sur l'axe X
-            plt.yticks(fontsize=10)  # Ajuste la taille du texte sur l'axe Y
-            plt.subplots_adjust(left=0.5)  # Augmente l'écart entre les noms et le diagramme
+            plt.xticks(fontsize=10)
+            plt.yticks(fontsize=10)
+            plt.subplots_adjust(left=0.5)
             plt.title("Impact des caractéristiques sur la prédiction", fontsize=16, pad=30)
             shap_fig = plt.gcf()
             plt.close(shap_fig)
 
         regression_fig = None
         if plot_reg:
-            # Chargement de X_test et y_test (prétraités de la même manière que X_train)
-            X_test_path = "data/interim/preprocessed/X_test.parquet"
-            y_test_path = "data/interim/preprocessed/y_test.parquet"
-            X_test = pd.read_parquet(X_test_path)
-            y_test = pd.read_parquet(y_test_path)
-            # Si y_test est un DataFrame à une colonne, le convertir en Series
+            X_test = pd.read_parquet("data/interim/preprocessed/X_test.parquet")
+            y_test = pd.read_parquet("data/interim/preprocessed/y_test.parquet")
             if isinstance(y_test, pd.DataFrame):
                 y_test = y_test.iloc[:, 0]
-            # Prédiction sur l'ensemble de test
             y_test_pred = loaded_model.predict(X_test)
-            # Génération du graphique de régression
             regression_fig = plot_regression_predictions(
                 y_true=y_test,
                 y_pred=y_test_pred,
@@ -424,6 +339,7 @@ def predict_prix_immobilier(
 
     except Exception as e:
         raise Exception(f"Erreur lors de la prédiction : {str(e)}")
+
 
 # -----------------------------------------------------------------------------
 # Interface utilisateur Streamlit
