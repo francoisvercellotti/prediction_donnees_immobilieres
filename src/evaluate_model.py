@@ -1,12 +1,40 @@
+"""
+Module pour l'analyse des erreurs dans un modèle de régression, en calculant/
+diverses métriques de performance,
+en générant des graphiques de prédictions et d'erreurs,
+et en enregistrant ces résultats dans MLflow.
+
+Ce module contient les fonctions suivantes :
+- `error_analysis`: Effectue une analyse complète des erreurs pour un modèle de régression, en calculant des métriques
+  de performance, en générant des graphiques de prédictions et en enregistrant les résultats dans MLflow.
+- `format_metrics`: Formate les métriques de performance pour l'affichage et l'enregistrement dans MLflow.
+- `plot_regression_predictions`: Génère un graphique des prédictions par rapport aux valeurs réelles.
+- `plot_regression_error`: Génère un graphique de la distribution des erreurs.
+
+Les graphiques générés sont enregistrés dans un répertoire temporaire et ensuite ajoutés au run MLflow en tant qu'artéfacts.
+
+Les métriques calculées incluent :
+- RMSE (Root Mean Squared Error)
+- MAE (Mean Absolute Error)
+- R² Score
+
+Ce module est conçu pour fournir une évaluation détaillée de la performance du modèle, aider à la visualisation des erreurs
+et assurer le suivi des résultats via MLflow.
+
+Il est recommandé d'utiliser ce module après l'entraînement d'un modèle pour analyser ses erreurs et son ajustement
+sur les jeux de données d'entraînement et de test.
+"""
+
+
 import os
 import tempfile
-import mlflow
-import mlflow.sklearn
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import mlflow
+import mlflow.sklearn
 
 # Configuration de MLflow
 mlflow.set_tracking_uri("http://localhost:5000")
@@ -14,14 +42,28 @@ EXPERIMENT_NAME = "regression_model_prediction_immobilières"
 RUN_NAME = "run_train_model_v1_dataset_v1"
 
 def load_model_from_mlflow(experiment_name, run_name):
-    """ Récupère le modèle sauvegardé dans MLflow pour un run donné. """
+    """
+    Récupère un modèle sauvegardé dans MLflow pour un run donné.
+
+    Args:
+        experiment_name (str): Le nom de l'expérience dans MLflow.
+        run_name (str): Le nom du run dont on souhaite récupérer le modèle.
+
+    Returns:
+        model: Le modèle sauvegardé dans MLflow.
+        run_id (str): L'ID du run correspondant au modèle chargé.
+
+    Raises:
+        ValueError: Si l'expérience ou le run n'est pas trouvé dans MLflow.
+    """
     client = mlflow.tracking.MlflowClient()
     experiment = client.get_experiment_by_name(experiment_name)
 
     if not experiment:
         raise ValueError(f"Expérience '{experiment_name}' introuvable dans MLflow.")
 
-    runs = client.search_runs(experiment.experiment_id, filter_string=f"tags.mlflow.runName = '{run_name}'")
+    runs = client.search_runs(experiment.experiment_id,
+                              filter_string=f"tags.mlflow.runName = '{run_name}'")
 
     if not runs:
         raise ValueError(f"Aucun run trouvé avec le nom '{run_name}'.")
@@ -34,7 +76,19 @@ def load_model_from_mlflow(experiment_name, run_name):
     return model, run_id
 
 def load_data_from_mlflow(run_id, dataset_name="train"):
-    """ Récupère le jeu de données sauvegardé dans MLflow. """
+    """
+    Récupère les jeux de données (X et y) sauvegardés dans MLflow pour un run donné.
+
+    Args:
+        run_id (str): L'ID du run pour lequel on veut charger les jeux de données.
+        dataset_name (str): Le nom du jeu de données à charger ('train' ou 'test').
+
+    Returns:
+        tuple: Un tuple contenant les données X et y chargées depuis MLflow.
+
+    Raises:
+        RuntimeError: Si un problème survient lors du téléchargement des données depuis MLflow.
+    """
     client = mlflow.tracking.MlflowClient()
 
     try:
@@ -48,7 +102,17 @@ def load_data_from_mlflow(run_id, dataset_name="train"):
         raise RuntimeError(f"❌ Erreur lors du téléchargement des données depuis MLflow: {e}")
 
 def format_metrics(metrics, train_errors, test_errors):
-    """Formate les métriques sans notation scientifique."""
+    """
+    Formate les métriques d'évaluation du modèle et génère un rapport sous forme de texte.
+
+    Args:
+        metrics (dict): Un dictionnaire contenant les métriques de performance du modèle.
+        train_errors (list): Liste des erreurs absolues pour l'ensemble d'entraînement.
+        test_errors (list): Liste des erreurs absolues pour l'ensemble de test.
+
+    Returns:
+        tuple: Un tuple contenant un dictionnaire de métriques formatées pour MLflow et un texte de rapport.
+    """
     # Configuration de pandas pour éviter la notation scientifique
     pd.set_option('display.float_format', lambda x: '%.4f' % x)
 
@@ -121,7 +185,16 @@ def format_metrics(metrics, train_errors, test_errors):
     return mlflow_metrics, "\n".join(report_lines)
 
 def plot_regression_predictions(y_true, y_pred, title, filename, output_dir):
-    """Crée un graphique des prédictions vs valeurs réelles."""
+    """
+    Crée un graphique comparant les prédictions du modèle aux valeurs réelles.
+
+    Args:
+        y_true (array-like): Valeurs réelles à comparer.
+        y_pred (array-like): Prédictions du modèle.
+        title (str): Le titre du graphique.
+        filename (str): Nom du fichier pour sauvegarder le graphique.
+        output_dir (str): Répertoire où sauvegarder le graphique.
+    """
     plt.figure(figsize=(8, 6))
     plt.scatter(y_true, y_pred, alpha=0.5, edgecolors="k", s=30)
     plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()],
@@ -135,7 +208,16 @@ def plot_regression_predictions(y_true, y_pred, title, filename, output_dir):
     plt.close()
 
 def plot_regression_error(y_true, y_pred, title, filename, output_dir):
-    """Crée un histogramme des erreurs de prédiction."""
+    """
+    Crée un histogramme de la distribution des erreurs de prédiction.
+
+    Args:
+        y_true (array-like): Valeurs réelles.
+        y_pred (array-like): Prédictions du modèle.
+        title (str): Titre du graphique.
+        filename (str): Nom du fichier pour sauvegarder le graphique.
+        output_dir (str): Répertoire où sauvegarder le graphique.
+    """
     errors = y_true - y_pred
     error_std = np.std(errors)
     error_mean = np.mean(errors)
@@ -155,7 +237,16 @@ def plot_regression_error(y_true, y_pred, title, filename, output_dir):
     plt.close()
 
 def error_analysis(model, X_train, y_train, X_test, y_test):
-    """Effectue l'analyse des erreurs et enregistre les résultats dans MLflow."""
+    """
+    Effectue une analyse des erreurs en termes de prédiction et enregistre les résultats dans MLflow.
+
+    Args:
+        model (sklearn model): Modèle entraîné pour effectuer les prédictions.
+        x_train (DataFrame): Données d'entrée d'entraînement.
+        y_train (DataFrame): Cibles d'entraînement.
+        x_test (DataFrame): Données d'entrée de test.
+        y_test (DataFrame): Cibles de test.
+    """
     # Utilisation d'un répertoire temporaire
     with tempfile.TemporaryDirectory() as output_dir:
         if X_train.empty or X_test.empty or y_train.empty or y_test.empty:
@@ -190,7 +281,8 @@ def error_analysis(model, X_train, y_train, X_test, y_test):
             absolute_errors_test = np.abs(y_test - y_test_pred)
 
             # Génération des métriques et du rapport
-            mlflow_metrics, report_text = format_metrics(metrics, absolute_errors_train, absolute_errors_test)
+            mlflow_metrics, report_text = format_metrics(metrics, absolute_errors_train,
+                                                         absolute_errors_test)
 
             # Log des métriques dans MLflow
             mlflow.log_metrics(mlflow_metrics)

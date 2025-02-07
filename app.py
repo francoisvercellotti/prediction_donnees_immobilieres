@@ -1,10 +1,47 @@
+
+"""
+Module de prétraitement et d'évaluation de modèles de
+classification pour la détection des faux billets.
+
+Ce module comprend plusieurs fonctions destinées à :
+- Encoder les variables catégorielles
+- Standardiser les données
+- Imputer les valeurs manquantes à l'aide de modèles de régression
+- Appliquer la transformation polynomiale et la sélection de caractéristiques
+- Effectuer une analyse en composantes principales (PCA) et un clustering K-Means
+- Évaluer les modèles à l'aide de courbes d'apprentissage,
+matrices de confusion et métriques de classification
+- Gérer le déséquilibre des classes à l'aide de SMOTE
+
+Fonctions principales :
+----------------------
+- `train_regression_model(X_train, y_train)`:
+Entraîne un modèle de régression pour imputer les valeurs manquantes.
+- `impute_missing_values(model, X)`: Impute les valeurs manquantes dans un jeu de données donné.
+- `preprocessing(X_train, X_test, y_train, smote=True)`:
+Effectue l'encodage, la standardisation, l'imputation et le rééquilibrage des classes.
+- `evaluation(model, X_train, y_train, X_test, y_test)`:
+Évalue un modèle en affichant les métriques de classification et la courbe d'apprentissage.
+- `Kmean_pipeline(X_train, X_test)`: Applique PCA et K-Means pour identifier les groupes de billets.
+
+Exemple d'utilisation :
+----------------------
+```python
+from preprocessing_module import preprocessing, evaluation, Kmean_pipeline
+
+X_train, X_test, y_train, y_test = preprocessing(X_train, X_test, y_train)
+model = Kmean_pipeline(X_train, X_test)
+evaluation(model, X_train, y_train, X_test, y_test)
+```
+
+"""
 import os
+import unicodedata
+import pickle
 import joblib
 import pandas as pd
 import streamlit as st
-import pickle
 import requests
-import unicodedata
 import numpy as np
 import shap
 import matplotlib.pyplot as plt
@@ -285,7 +322,8 @@ def predict_prix_immobilier(
             "ville_demandee": [np.int64(ville_demandee)]
         })
 
-        for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]), type_batiment_encoded):
+        for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]),
+                              type_batiment_encoded):
             input_data[col] = np.int64(value)
         for col, value in zip(region_encoder.get_feature_names_out(["nom_region"]), region_encoded):
             input_data[col] = np.int64(value)
@@ -377,7 +415,8 @@ with col1:
                     st.session_state.lat, st.session_state.lon = get_coordinates(address)
                     if st.session_state.lat and st.session_state.lon:
                         # Récupération et normalisation de la région à partir des coordonnées
-                        region_found = get_region_from_coordinates(st.session_state.lat, st.session_state.lon)
+                        region_found = get_region_from_coordinates
+                        (st.session_state.lat, st.session_state.lon)
                         normalized_region = normalize_text(region_found)
                         st.success("📍 Coordonnées trouvées")
                         st.info(f"🌍 Région : {region_found}")
@@ -400,7 +439,8 @@ with col1:
                                       min_value=10, max_value=500,
                                       value=100, step=5)
         # Sélection du type de bâtiment
-        type_batiment_selection = st.selectbox("Type de bâtiment", options=["Appartement", "Maison"])
+        type_batiment_selection = st.selectbox("Type de bâtiment",
+                                               options=["Appartement", "Maison"])
         # Sélection de la ville demandée
         ville_demandee = st.selectbox("Ville demandée", options=["Non", "Oui"])
         ville_demandee = 1 if ville_demandee == "Oui" else 0
@@ -457,7 +497,8 @@ with col1:
 # Colonne 2 : Affichage des résultats de la prédiction
 # -----------------------------------------------------------------------------
 with col2:
-    if st.session_state.region and st.session_state.lat and st.session_state.lon and st.session_state.prediction is not None:
+    if st.session_state.region and st.session_state.lat and st.session_state.lon\
+        and st.session_state.prediction is not None:
         st.markdown("### 📊 Résultats de la prédiction")
         # Affichage du prix estimé
         st.markdown(f"""

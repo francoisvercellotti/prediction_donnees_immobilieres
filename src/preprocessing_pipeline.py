@@ -1,13 +1,32 @@
+"""
+Module de prétraitement des données pour l'encodage et la séparation des cibles.
+
+Ce module réalise le prétraitement des données en séparant les ensembles d'entraînement
+et de test pour la régression et la classification. Il applique également l'encodage
+des colonnes catégorielles spécifiées dans les paramètres d'entrée.
+
+Les encodeurs sont ensuite sauvegardés dans un fichier `.pickle` afin d'être utilisés
+ultérieurement lors de l'évaluation ou du déploiement des modèles.
+
+Note : ce module ne s'occupe pas de la standardisation ou de l'imputation des données manquantes.
+
+Modules importés :
+- `split_and_encode` pour la séparation des cibles et l'encodage des variables.
+- `pickle` pour la sauvegarde des encodeurs dans un fichier.
+"""
+
+
+
 import os
 import pickle
 import sys
 import logging
 import pandas as pd
-
-# Ajouter le dossier parent au chemin pour importer les paramètres
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.split_and_encode import split_and_encode
 from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
+# Ajouter le dossier parent au chemin pour importer les paramètres
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 # Configuration des logs
 logging.basicConfig(

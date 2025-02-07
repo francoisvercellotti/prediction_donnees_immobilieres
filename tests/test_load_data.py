@@ -1,8 +1,34 @@
+"""
+Module de tests pour la fonction `load_data` du module `src.load_data`.
 
-from src.load_data import load_data
-import pandas as pd
+Ce module contient plusieurs tests unitaires pour vérifier la capacité de la fonction `load_data`
+à charger correctement différents types de fichiers (CSV, JSON, Excel et TXT) en DataFrame Pandas.
+
+Fonctions :
+-----------
+- create_temp_file(extension, content) : Crée un fichier temporaire avec un contenu donné.
+- test_load_csv() : Teste le chargement d'un fichier CSV.
+- test_load_json() : Teste le chargement d'un fichier JSON.
+- test_load_excel() : Teste le chargement d'un fichier Excel.
+- test_load_txt() : Teste le chargement d'un fichier TXT.
+- run_tests() : Exécute tous les tests.
+
+Exécution :
+-----------
+Si ce script est exécuté directement, il exécutera tous les tests automatiquement.
+
+Exemple d'exécution :
+---------------------
+    python test_load_data.py
+
+"""
+
+
 import os
 import tempfile
+import pandas as pd
+from src.load_data import load_data
+
 
 
 def create_temp_file(extension, content):
@@ -35,7 +61,7 @@ def test_load_csv():
 
 def test_load_json():
     """Test pour un fichier JSON."""
-    content = '[{"prix": 100000, "id_ville": 1, "ville": "Paris"}, {"prix": 200000, "id_ville": 2, "ville": "Lyon"}]'
+    content = '[{"prix": 100000, "id_ville": 1, "ville": "Paris"},{"prix": 200000, "id_ville": 2, "ville": "Lyon"}]'
     filepath = create_temp_file(".json", content)
     try:
         df = load_data(filepath)

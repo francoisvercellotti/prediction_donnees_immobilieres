@@ -1,128 +1,161 @@
+"""
+Module pour le prétraitement des données, incluant le découpage train/test et l'encodage des variables catégorielles.
+Ce module fournit des fonctionnalités pour préparer les données avant l'entraînement des modèles.
+"""
+
+import logging
 import os
 import sys
+from typing import Dict, Tuple
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+
 # Ajouter le dossier parent au chemin pour importer les paramètres
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET, random_state
-import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import train_test_split
-from typing import Tuple, Dict
-import logging
 
 # Configuration des logs
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)  # Affichage des logs dans la console
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 
 
-
-
-# Fonction pour encoder une colonne catégorielle avec OneHotEncoder
-def encode_column(df: pd.DataFrame, column: str, encoder: OneHotEncoder = None) -> Tuple[pd.DataFrame, Dict[str, OneHotEncoder]]:
+def encode_column(
+    data: pd.DataFrame,
+    column: str,
+    encoder: OneHotEncoder = None
+) -> Tuple[pd.DataFrame, Dict[str, OneHotEncoder]]:
     """
     Encode une colonne spécifique avec OneHotEncoder et retourne des valeurs binaires.
 
     Args:
-        df (pd.DataFrame): DataFrame d'entrée.
-        column (str): Nom de la colonne à encoder.
-        encoder (OneHotEncoder, optionnel): Un encodeur déjà entraîné. Si None, l'encodeur sera créé et entraîné.
+        data: DataFrame d'entrée
+        column: Nom de la colonne à encoder
+        encoder: Un encodeur déjà entraîné. Si None, l'encodeur sera créé et entraîné
 
     Returns:
-        Tuple[pd.DataFrame, Dict[str, OneHotEncoder]]: DataFrame avec la colonne encodée et le dictionnaire contenant l'encodeur.
+        DataFrame avec la colonne encodée et le dictionnaire contenant l'encodeur
     """
-    logging.info(f"Encodage de la colonne '{column}' avec OneHotEncoder.")
+    logging.info("Encodage de la colonne '%s' avec OneHotEncoder.", column)
+
     if encoder is None:
         encoder = OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore')
-        encoder.fit(df[[column]])
-        logging.info(f"Encoder créé et entraîné pour la colonne '{column}'.")
+        encoder.fit(data[[column]])
+        logging.info("Encoder créé et entraîné pour la colonne '%s'.", column)
 
-    encoded = encoder.transform(df[[column]])
-    encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out([column]), index=df.index)
+    encoded = encoder.transform(data[[column]])
+    feature_names = encoder.get_feature_names_out([column])
+    encoded_df = pd.DataFrame(encoded, columns=feature_names, index=data.index)
     encoded_df = encoded_df.astype(int)
 
-    df = pd.concat([df.drop(columns=[column]), encoded_df], axis=1)
-    logging.info(f"Colonne '{column}' encodée avec succès. Dimensions du DataFrame: {df.shape}.")
-    return df, {column: encoder}
+    result = pd.concat([data.drop(columns=[column]), encoded_df], axis=1)
+    logging.info(
+        "Colonne '%s' encodée avec succès. Dimensions du DataFrame: %s.",
+        column,
+        result.shape
+    )
+
+    return result, {column: encoder}
 
 
-# Fonction principale pour la séparation et l'encodage
-def split_and_encode(df: pd.DataFrame, target_classification: str, target_regression: str, columns_to_encode: list = None) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.Series, Dict[str, OneHotEncoder]]:
+def split_and_encode(
+    data: pd.DataFrame,
+    target_class: str,
+    target_reg: str,
+    cols_to_encode: list = None
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.Series, Dict[str, OneHotEncoder]]:
     """
-    Sépare le DataFrame en train et test, et encode des colonnes catégorielles, si spécifié.
+    Sépare le DataFrame en train et test, et encode des colonnes catégorielles.
+
+    Args:
+        data: DataFrame d'entrée
+        target_class: Nom de la colonne cible pour la classification
+        target_reg: Nom de la colonne cible pour la régression
+        cols_to_encode: Liste des colonnes à encoder
+
+    Returns:
+        Tuple contenant:
+        - X_train: Features d'entraînement
+        - X_test: Features de test
+        - y_train_reg: Cible régression d'entraînement
+        - y_test_reg: Cible régression de test
+        - y_train_class: Cible classification d'entraînement
+        - y_test_class: Cible classification de test
+        - encoders: Dictionnaire des encodeurs utilisés
     """
     logging.info("Début de la séparation du DataFrame en ensembles d'entraînement et de test.")
 
-    # Séparation du DataFrame
-    trainset, testset = train_test_split(df, test_size=0.2, random_state=random_state)
-    logging.info(f"Train set : {trainset.shape}, Test set : {testset.shape}.")
+    train_data, test_data = train_test_split(
+        data,
+        test_size=0.2,
+        random_state=random_state
+    )
+
+    logging.info("Train set : %s, Test set : %s.", train_data.shape, test_data.shape)
 
     # Séparer les features et les cibles
-    X_train = trainset.drop([target_regression, target_classification], axis=1)
-    y_train_regression = trainset[target_regression]
-    y_train_classification = trainset[target_classification]
+    features_train = train_data.drop([target_reg, target_class], axis=1)
+    target_train_reg = train_data[target_reg]
+    target_train_class = train_data[target_class]
 
-    X_test = testset.drop([target_regression, target_classification], axis=1)
-    y_test_regression = testset[target_regression]
-    y_test_classification = testset[target_classification]
+    features_test = test_data.drop([target_reg, target_class], axis=1)
+    target_test_reg = test_data[target_reg]
+    target_test_class = test_data[target_class]
 
-    logging.info(f"Valeurs uniques de 'nom_region' avant encodage : {df['nom_region'].unique()}")
-
+    logging.info("Valeurs uniques de 'nom_region' : %s", data['nom_region'].unique())
 
     encoders = {}
 
-    # Encodage des colonnes catégorielles
-    if columns_to_encode:
-        for col in columns_to_encode:
-            if col not in df.columns:
-                logging.error(f"La colonne '{col}' n'existe pas dans le DataFrame.")
-                raise ValueError(f"La colonne {col} n'existe pas dans le DataFrame.")
+    if cols_to_encode:
+        for col in cols_to_encode:
+            if col not in data.columns:
+                msg = f"La colonne {col} n'existe pas dans le DataFrame."
+                logging.error(msg)
+                raise ValueError(msg)
 
-            logging.info(f"Encodage de la colonne '{col}'.")
-            X_train, encoder = encode_column(X_train, col)
-            X_test, _ = encode_column(X_test, col, encoder[col])  # Utilisation de l'encodeur déjà appris
-
-            # ✅ Stocker l'encodeur correctement
+            logging.info("Encodage de la colonne '%s'.", col)
+            features_train, encoder = encode_column(features_train, col)
+            features_test, _ = encode_column(features_test, col, encoder[col])
             encoders[col] = encoder[col]
 
-    logging.info("Encodage terminé. Dimensions finales:")
-    logging.info(f"X_train: {X_train.shape}, X_test: {X_test.shape}.")
+    logging.info(
+        "X_train: %s, X_test: %s.",
+        features_train.shape,
+        features_test.shape
+    )
 
-    # Afficher les 5 premières lignes de chaque DataFrame en sortie
-    pd.set_option("display.max_columns", None)  # Affiche toutes les colonnes
-    pd.set_option("display.width", 1000)  # Ajuste la largeur d'affichage pour éviter les coupures
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", 1000)
 
-    logging.info("5 premières lignes de X_train:")
-    logging.info(X_train.head())
-
-    logging.info("5 premières lignes de X_test:")
-    logging.info(X_test.head())
-
-    return X_train, X_test, y_train_regression, y_test_regression, y_train_classification, y_test_classification, encoders
+    return (
+        features_train,
+        features_test,
+        target_train_reg,
+        target_test_reg,
+        target_train_class,
+        target_test_class,
+        encoders
+    )
 
 
 if __name__ == "__main__":
     logging.info("Chargement du DataFrame.")
-    df = pd.read_parquet('data/interim/prepared_dataset.parquet')
+    input_df = pd.read_parquet('data/interim/prepared_dataset.parquet')
+    input_df.columns = input_df.columns.str.strip()
 
-    # Nettoyage des colonnes
-    df.columns = df.columns.str.strip()
-    logging.info(f"Colonnes disponibles après nettoyage : {list(df.columns)}.")
+    logging.info("Colonnes disponibles après nettoyage : %s", list(input_df.columns))
 
-    # Paramètres pour la fonction
-    target_classification = CLASSIFICATION_TARGET
-    target_regression = REGRESSION_TARGET
-    columns_to_encode = ['type_batiment', 'nom_region']
+    COLS_TO_ENCODE = ['type_batiment', 'nom_region']
 
-    logging.info("Début de la fonction split_and_encode.")
     results = split_and_encode(
-        df=df,
-        target_classification=target_classification,
-        target_regression=target_regression,
-        columns_to_encode=columns_to_encode
+        data=input_df,
+        target_class=CLASSIFICATION_TARGET,
+        target_reg=REGRESSION_TARGET,
+        cols_to_encode=COLS_TO_ENCODE
     )
 
     logging.info("split_and_encode terminé avec succès.")
