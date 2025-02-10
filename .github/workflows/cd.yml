@@ -15,7 +15,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Continue seulement si le CI a réussi
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: 📥 Checkout du code
@@ -23,8 +23,22 @@ jobs:
 
       - name: 🐳 Installation de Docker
         run: |
+          # Suppression des anciennes versions
+          for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+          # Installation des prérequis
           sudo apt-get update
-          sudo apt-get install -y docker.io
+          sudo apt-get install -y ca-certificates curl gnupg
+
+          # Ajout du repository officiel Docker
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          sudo chmod a+r /etc/apt/keyrings/docker.gpg
+          echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+          # Installation de Docker
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
       - name: 🔨 Construction de l'image Docker
         run: |
@@ -32,11 +46,8 @@ jobs:
 
       - name: 🚀 Démarrage du conteneur
         run: |
-          # Arrêt du conteneur existant s'il existe
           docker stop ${{ env.CONTAINER_NAME }} || true
           docker rm ${{ env.CONTAINER_NAME }} || true
-
-          # Démarrage du nouveau conteneur
           docker run -d --name ${{ env.CONTAINER_NAME }} -p ${{ env.PORT }}:${{ env.PORT }} ${{ env.DOCKER_IMAGE }}
 
       - name: 🌍 Configuration de Ngrok
