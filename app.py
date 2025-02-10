@@ -36,12 +36,12 @@ evaluation(model, X_train, y_train, X_test, y_test)
 
 """
 import os
-import unicodedata
-import pickle
 import joblib
 import pandas as pd
 import streamlit as st
+import pickle
 import requests
+import unicodedata
 import numpy as np
 import shap
 import matplotlib.pyplot as plt
@@ -322,8 +322,7 @@ def predict_prix_immobilier(
             "ville_demandee": [np.int64(ville_demandee)]
         })
 
-        for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]),
-                              type_batiment_encoded):
+        for col, value in zip(type_batiment_encoder.get_feature_names_out(["type_batiment"]), type_batiment_encoded):
             input_data[col] = np.int64(value)
         for col, value in zip(region_encoder.get_feature_names_out(["nom_region"]), region_encoded):
             input_data[col] = np.int64(value)
@@ -415,8 +414,7 @@ with col1:
                     st.session_state.lat, st.session_state.lon = get_coordinates(address)
                     if st.session_state.lat and st.session_state.lon:
                         # Récupération et normalisation de la région à partir des coordonnées
-                        region_found = get_region_from_coordinates
-                        (st.session_state.lat, st.session_state.lon)
+                        region_found = get_region_from_coordinates(st.session_state.lat, st.session_state.lon)
                         normalized_region = normalize_text(region_found)
                         st.success("📍 Coordonnées trouvées")
                         st.info(f"🌍 Région : {region_found}")
@@ -439,8 +437,7 @@ with col1:
                                       min_value=10, max_value=500,
                                       value=100, step=5)
         # Sélection du type de bâtiment
-        type_batiment_selection = st.selectbox("Type de bâtiment",
-                                               options=["Appartement", "Maison"])
+        type_batiment_selection = st.selectbox("Type de bâtiment", options=["Appartement", "Maison"])
         # Sélection de la ville demandée
         ville_demandee = st.selectbox("Ville demandée", options=["Non", "Oui"])
         ville_demandee = 1 if ville_demandee == "Oui" else 0
@@ -497,8 +494,7 @@ with col1:
 # Colonne 2 : Affichage des résultats de la prédiction
 # -----------------------------------------------------------------------------
 with col2:
-    if st.session_state.region and st.session_state.lat and st.session_state.lon\
-        and st.session_state.prediction is not None:
+    if st.session_state.region and st.session_state.lat and st.session_state.lon and st.session_state.prediction is not None:
         st.markdown("### 📊 Résultats de la prédiction")
         # Affichage du prix estimé
         st.markdown(f"""
