@@ -34,7 +34,7 @@ jobs:
           sudo install -m 0755 -d /etc/apt/keyrings
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
           sudo chmod a+r /etc/apt/keyrings/docker.gpg
-          echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
           # Installation de Docker
           sudo apt-get update
@@ -54,12 +54,26 @@ jobs:
         run: |
           docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}"
 
+      - name: ⏳ Attente que l'application soit en ligne
+        run: |
+          echo "Attente de l'application sur le port ${{ env.PORT }}..."
+          # On vérifie toutes les 5 secondes pendant 60 secondes (12 tentatives)
+          for i in {1..12}; do
+            if curl -s http://localhost:${{ env.PORT }} >/dev/null; then
+              echo "L'application est en ligne !"
+              exit 0
+            fi
+            echo "Tentative $i : l'application n'est pas encore en ligne, attente de 5 secondes..."
+            sleep 5
+          done
+          echo "L'application n'est toujours pas en ligne après 60 secondes."
+          exit 1
 
       - name: 🌍 Configuration de Ngrok
         run: |
           curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
           echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt-get update && sudo apt-get install ngrok
+          sudo apt-get update && sudo apt-get install -y ngrok
           ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
       - name: 🔗 Exposition via Ngrok
