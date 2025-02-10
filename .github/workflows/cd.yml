@@ -9,7 +9,7 @@ on:
 
 env:
   DOCKER_IMAGE: prediction_donnees_immobilieres-streamlit_app
-  CONTAINER_NAME: prediction-immobilier-container
+  CONTAINER_NAME: prediction_donnees_immobilieres-streamlit_app-1
   PORT: 8501
 
 jobs:
