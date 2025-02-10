@@ -1,0 +1,55 @@
+name: Streamlit CD
+on:
+  workflow_run:
+    workflows: ["CI Workflow"]  # Exécute seulement si le workflow CI a été exécuté
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  DOCKER_IMAGE: prediction_donnees_immobilieres-streamlit_app
+  CONTAINER_NAME: prediction-immobilier-container
+  PORT: 8501
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Continue seulement si le CI a réussi
+
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v3
+
+      - name: 🐳 Installation de Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+
+      - name: 🔨 Construction de l'image Docker
+        run: |
+          docker build -t ${{ env.DOCKER_IMAGE }} .
+
+      - name: 🚀 Démarrage du conteneur
+        run: |
+          # Arrêt du conteneur existant s'il existe
+          docker stop ${{ env.CONTAINER_NAME }} || true
+          docker rm ${{ env.CONTAINER_NAME }} || true
+
+          # Démarrage du nouveau conteneur
+          docker run -d --name ${{ env.CONTAINER_NAME }} -p ${{ env.PORT }}:${{ env.PORT }} ${{ env.DOCKER_IMAGE }}
+
+      - name: 🌍 Configuration de Ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt-get update && sudo apt-get install ngrok
+          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+
+      - name: 🔗 Exposition via Ngrok
+        run: |
+          ngrok http ${{ env.PORT }} > ngrok.log &
+          sleep 5
+          NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r ".tunnels[0].public_url")
+          echo "NGROK_URL=$NGROK_URL" >> $GITHUB_ENV
+          echo "🌐 L'application est disponible sur: $NGROK_URL"
