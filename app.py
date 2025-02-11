@@ -60,7 +60,7 @@ st.markdown("""
         background-color: #f5f5f5;
     }
     .prediction-box {
-        background-color: #f0f8ff;
+        background-color: #f5f5f5;
         padding: 20px;
         border-radius: 10px;
         text-align: center;

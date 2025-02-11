@@ -3,6 +3,9 @@
 ## 📋 Vue d'ensemble
 Application d'estimation immobilière basée sur le machine learning, développée pour aider les agents immobiliers à obtenir rapidement des estimations précises des biens, avec des explications détaillées des prédictions.
 
+[🎬 Voir la vidéo](https://github.com/francoisvercellotti/prediction_donnees_immobilieres/raw/main/assets/20250211-1551-55.6896484.mp4)
+
+
 ## 🎯 Objectifs du Projet
 - Développer une solution pratique pour l'estimation immobilière
 - Mettre l'accent sur une approche data-centric plutôt que model-centric
