@@ -60,7 +60,7 @@ st.markdown("""
         background-color: #f5f5f5;
     }
     .prediction-box {
-        background-color: #f5f5f5;
+        background-color:rgb(24, 22, 22);
         padding: 20px;
         border-radius: 10px;
         text-align: center;
@@ -223,7 +223,7 @@ def shorten_feature_names(feature_names):
         shortened_names.append(name)
     return shortened_names
 
-def plot_regression_predictions(y_true, y_pred, title, filename, output_dir, user_pred=None):
+def plot_regression_predictions(y_true, y_pred, title, user_pred=None):
     """
     Crée un graphique comparant les prédictions aux valeurs réelles, avec conversion en k€.
 
@@ -277,9 +277,6 @@ def plot_regression_predictions(y_true, y_pred, title, filename, output_dir, use
     plt.title(title)
     plt.legend()
     plt.tight_layout()
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, filename)
-    plt.savefig(filepath)
     fig = plt.gcf()
     plt.close(fig)
     return fig
@@ -298,8 +295,61 @@ def predict_prix_immobilier(
     region: str,
     show_plots: bool = True,
     plot_reg: bool = True,
-    output_dir: str = "plots"
 ):
+    """
+        Prédit le prix d'un bien immobilier en fonction de plusieurs caractéristiques et génère des visualisations explicatives.
+
+        Paramètres :
+        -----------
+        vefa : bool
+            Indique si le bien est vendu en état futur d'achèvement (VEFA).
+        surface_habitable : int
+            Surface habitable du bien en mètres carrés.
+        latitude : float
+            Latitude de l'emplacement du bien.
+        longitude : float
+            Longitude de l'emplacement du bien.
+        mois_transaction : int
+            Mois de la transaction (1-12).
+        annee_transaction : int
+            Année de la transaction.
+        prix_m2_moyen_mois_precedent : float
+            Prix moyen du mètre carré dans la zone géographique le mois précédent.
+        nb_transactions_mois_precedent : int
+            Nombre de transactions immobilières enregistrées le mois précédent.
+        ville_demandee : bool
+            Indique si la ville est considérée comme demandée (1 pour oui, 0 pour non).
+        type_batiment : str
+            Type de bâtiment (ex : "Appartement", "Maison").
+        region : str
+            Région où se situe le bien immobilier.
+        show_plots : bool, optionnel (par défaut True)
+            Indique si l'explication SHAP doit être générée et retournée.
+        plot_reg : bool, optionnel (par défaut True)
+            Indique si un graphique de régression doit être généré.
+
+        Retours :
+        --------
+        prediction : float
+            Prix prédit du bien immobilier.
+        shap_fig : matplotlib.figure.Figure ou None
+            Figure SHAP expliquant la contribution des variables à la prédiction, ou None si `show_plots` est False.
+        regression_fig : matplotlib.figure.Figure ou None
+            Graphique de régression comparant les prédictions et les valeurs réelles, ou None si `plot_reg` est False.
+
+        Exceptions :
+        -----------
+        En cas d'erreur lors du chargement des fichiers, de l'encodage des variables ou de la prédiction, une exception est levée.
+
+        Notes :
+        ------
+        - Le modèle est chargé depuis `MODEL_PATH` via `joblib.load`.
+        - Les encodeurs pour `type_batiment` et `region` sont appliqués pour transformer ces variables catégorielles en numériques.
+        - L'alignement des colonnes est effectué pour garantir la compatibilité avec le modèle entraîné.
+        - L'explication SHAP est générée uniquement si `show_plots` est activé.
+        - Un graphique de régression est généré si `plot_reg` est activé.
+        """
+
     try:
         X_train = pd.read_parquet("data/interim/preprocessed/X_train.parquet")
         train_columns = X_train.columns.tolist()
@@ -365,9 +415,7 @@ def predict_prix_immobilier(
             regression_fig = plot_regression_predictions(
                 y_true=y_test,
                 y_pred=y_test_pred,
-                title="Prédictions vs Valeurs Réelles sur X_test (en k€)",
-                filename="regression_plot.png",
-                output_dir=output_dir,
+                title="Tendances des erreurs du modèle (en k€)",
                 user_pred=prediction[0]
             )
 
@@ -380,7 +428,12 @@ def predict_prix_immobilier(
 # -----------------------------------------------------------------------------
 # Interface utilisateur Streamlit
 # -----------------------------------------------------------------------------
-st.title("🏠 Prédiction de Prix Immobilier")
+
+# Centrer le titre avec du HTML et du CSS
+st.markdown(
+    "<h1 style='text-align: center; font-size: 60px;'>🏠 Prédiction de Prix Immobilier</h1>",
+    unsafe_allow_html=True
+)
 
 # Création de deux colonnes pour organiser l'interface (entrée et affichage)
 col1, col2 = st.columns([1, 2])
@@ -525,5 +578,5 @@ with col2:
             st.pyplot(st.session_state.shap_fig)
         # Affichage du graphique de régression si disponible
         if st.session_state.regression_fig is not None:
-            st.markdown("### 📈 Performance sur X_test (en k€)")
+            st.markdown("### 📈 Tendances des erreurs du modèle (en k€)")
             st.pyplot(st.session_state.regression_fig)
