@@ -17,3 +17,7 @@ mlruns/
 
 # Dossier data à ignorer
 data/
+
+# autres
+*.log
+*.txt

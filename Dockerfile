@@ -33,4 +33,4 @@ EXPOSE 8501
 ENV PATH="/venv/bin:$PATH"
 
 # Commande pour lancer l'application
-CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "app.py"]
