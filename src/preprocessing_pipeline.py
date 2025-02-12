@@ -14,9 +14,6 @@ Modules importés :
 - `split_and_encode` pour la séparation des cibles et l'encodage des variables.
 - `pickle` pour la sauvegarde des encodeurs dans un fichier.
 """
-
-
-
 import os
 import pickle
 import sys
