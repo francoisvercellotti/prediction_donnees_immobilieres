@@ -2,7 +2,7 @@ import pandas as pd
 import mlflow
 import tempfile
 from evidently.report import Report
-from evidently.metrics import ColumnDriftMetric, DatasetDriftMetric, DataDriftTable
+from evidently.metrics import ColumnDriftMetric, DatasetDriftMetric
 
 # Configuration de MLflow
 mlflow.set_tracking_uri('http://localhost:5000')
