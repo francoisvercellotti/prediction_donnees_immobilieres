@@ -92,8 +92,8 @@ def load_data_from_mlflow(run_id, dataset_name="train"):
     client = mlflow.tracking.MlflowClient()
 
     try:
-        X_path = client.download_artifacts(run_id, f"X_{dataset_name}.parquet")
-        y_path = client.download_artifacts(run_id, f"y_{dataset_name}.parquet")
+        X_path = client.download_artifacts(run_id, f"features_{dataset_name}.parquet")
+        y_path = client.download_artifacts(run_id, f"target_{dataset_name}.parquet")
         X = pd.read_parquet(X_path)
         y = pd.read_parquet(y_path)
         print(f"📊 {dataset_name.capitalize()} chargé depuis MLflow.")

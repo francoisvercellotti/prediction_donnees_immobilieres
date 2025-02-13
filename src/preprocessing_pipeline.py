@@ -18,14 +18,16 @@ Modules importés :
 
 
 import os
+
 import pickle
 import sys
+# Ajouter le dossier parent au chemin pour importer les paramètres
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 import pandas as pd
 from src.split_and_encode import split_and_encode
 from settings import CLASSIFICATION_TARGET, REGRESSION_TARGET
-# Ajouter le dossier parent au chemin pour importer les paramètres
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 
 # Configuration des logs

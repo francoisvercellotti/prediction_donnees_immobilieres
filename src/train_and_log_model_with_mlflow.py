@@ -7,8 +7,8 @@ entraîner des modèles et les enregistrer avec MLflow.
 
 import logging
 import os
+import sys
 from typing import Dict, Tuple, Optional, Union
-
 import mlflow
 import mlflow.sklearn
 import numpy as np
@@ -17,6 +17,8 @@ from mlflow.models.signature import infer_signature
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import cross_validate, TimeSeriesSplit
+# Ajouter le dossier parent au chemin pour importer les paramètres
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.preprocessing_pipeline import preprocess_data
 
