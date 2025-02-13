@@ -35,7 +35,6 @@ evaluation(model, X_train, y_train, X_test, y_test)
 ```
 
 """
-import os
 import joblib
 import pandas as pd
 import streamlit as st
