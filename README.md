@@ -61,10 +61,12 @@ Application d'estimation immobilière basée sur le machine learning, développ�
 
 4. **Monitoring Avancé**
    - Détection automatique du data drift via Evidently
+
    ![Monitoring data_drift](assets/data_drift_heatmap.png)
 
    - Surveillance continue du model drift
-   ![Monitoring model_drift](assets/drift_percentage_by metric.png)
+
+   ![Monitoring model_drift](assets/drift_percentage_by_metric.png)
 
 
 5. **Code de Qualité**
