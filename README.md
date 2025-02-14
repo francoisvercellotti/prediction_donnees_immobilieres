@@ -51,6 +51,8 @@ Application d'estimation immobilière basée sur le machine learning, développ�
    - Documentation détaillée des limites du modèle
    - Métriques de performance clairement présentées
 
+   ![shap_beeswarm](assets/shap_beeswarm.png)
+
 3. **Infrastructure Robuste**
    - Pipeline de données automatisé
    - Environnement reproductible
@@ -59,9 +61,11 @@ Application d'estimation immobilière basée sur le machine learning, développ�
 
 4. **Monitoring Avancé**
    - Détection automatique du data drift via Evidently
+   ![Monitoring data_drift](assets/data_drift_heatmap.png)
+
    - Surveillance continue du model drift
-   - Alertes en cas de dégradation des performances
-   - Tableaux de bord de monitoring en temps réel
+   ![Monitoring model_drift](assets/drift_percentage_by metric.png)
+
 
 5. **Code de Qualité**
    - Standards de code élevés (Pylint > 8)
