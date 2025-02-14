@@ -31,14 +31,22 @@ def create_test_data():
         'feature1': np.random.normal(0, 1, 30),
         'feature2': np.random.normal(0, 1, 30)
     })
-    y_train = X_train['feature1'] * 2 + X_train['feature2'] + np.random.normal(0, 0.1, 100)
-    y_test = X_test['feature1'] * 2 + X_test['feature2'] + np.random.normal(0, 0.1, 30)
+    y_train = pd.Series(X_train['feature1'] * 2 + X_train['feature2'] + np.random.normal(0, 0.1, 100))
+    y_test = pd.Series(X_test['feature1'] * 2 + X_test['feature2'] + np.random.normal(0, 0.1, 30))
 
     model = LinearRegression()
     model.fit(X_train, y_train)
     return X_train, X_test, y_train, y_test, model
 
-def test_error_analysis_metrics():
+@pytest.fixture
+def mlflow_start_run():
+    """Fixture pour mocker mlflow.start_run"""
+    with mock.patch('mlflow.start_run') as mock_run:
+        # Créer un mock qui peut être utilisé comme context manager
+        mock_run.return_value.__enter__.return_value = mock.MagicMock()
+        yield mock_run
+
+def test_error_analysis_metrics(mlflow_start_run):
     """Teste error_analysis sans interactions avec le système de fichiers ni exécutions MLflow."""
     X_train, X_test, y_train, y_test, model = create_test_data()
 
@@ -48,19 +56,17 @@ def test_error_analysis_metrics():
 
     # Patcher les appels à MLflow et les fonctions liées aux fichiers
     with mock.patch('mlflow.get_experiment_by_name', return_value=fake_experiment), \
-         mock.patch('mlflow.start_run'), \
          mock.patch('mlflow.log_metrics'), \
-         mock.patch('mlflow.log_params'), \
          mock.patch('mlflow.log_artifacts'), \
          mock.patch('matplotlib.pyplot.savefig'), \
          mock.patch('os.makedirs'), \
          mock.patch('matplotlib.pyplot.close'):
 
-        metrics = error_analysis(model, X_train, y_train, X_test, y_test)
+        metrics = error_analysis("fake_parent_run_id", model, X_train, y_train, X_test, y_test)
 
         # Vérification des métriques attendues
         expected_metrics = ['Train RMSE', 'Train MAE', 'Train R2',
-                            'Test RMSE', 'Test MAE', 'Test R2']
+                          'Test RMSE', 'Test MAE', 'Test R2']
 
         assert all(metric in metrics for metric in expected_metrics), "Métriques manquantes"
         assert all(isinstance(metrics[metric], float) for metric in expected_metrics), \
@@ -72,13 +78,13 @@ def test_error_analysis_metrics():
         assert all(metrics[metric] > 0 for metric in [
             'Train RMSE', 'Test RMSE', 'Train MAE', 'Test MAE']), "Métriques négatives"
 
-def test_empty_data():
+def test_empty_data(mlflow_start_run):
     """Teste la gestion des erreurs avec des données vides."""
     empty_df = pd.DataFrame()
     model = LinearRegression()
 
     with pytest.raises(ValueError):
-        error_analysis(model, empty_df, empty_df, empty_df, empty_df)
+        error_analysis("fake_parent_run_id", model, empty_df, empty_df, empty_df, empty_df)
 
 if __name__ == "__main__":
     pytest.main([__file__])

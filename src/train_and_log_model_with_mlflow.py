@@ -22,7 +22,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.preprocessing_pipeline import preprocess_data
 
-
 def perform_cross_validation(
     features: pd.DataFrame,
     target: pd.Series,
@@ -33,17 +32,6 @@ def perform_cross_validation(
 ) -> Dict[str, float]:
     """
     Effectue une validation croisée pour un modèle donné et retourne les scores.
-
-    Args:
-        features (pd.DataFrame): Données de features.
-        target (pd.Series): Données cibles.
-        model (object): Modèle à évaluer.
-        cross_validation_strategy (Union[int, TimeSeriesSplit]): Stratégie de validation croisée.
-        scoring_metrics (Tuple[str, ...]): Métriques de scoring.
-        groups (Optional[np.ndarray], optional): Groupes pour validation croisée groupée.
-
-    Returns:
-        Dict[str, float]: Dictionnaire des moyennes et écarts-types des scores.
     """
     cv_results = cross_validate(
         model,
@@ -65,6 +53,34 @@ def perform_cross_validation(
 
     return scores_dict
 
+def get_or_create_parent_run(experiment_name: str, run_name: str) -> str:
+    """
+    Récupère le run parent actif ou en crée un nouveau si nécessaire.
+    """
+    # Configuration de MLflow
+    mlflow.set_tracking_uri("file:" + os.path.abspath("mlruns"))
+    mlflow.set_experiment(experiment_name)
+
+    active_run = mlflow.active_run()
+    if active_run:
+        return active_run.info.run_id
+
+    # Si pas de run actif, chercher le dernier run parent créé
+    client = MlflowClient()
+    experiment = client.get_experiment_by_name(experiment_name)
+    if experiment:
+        runs = client.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string="tags.mlflow.runName LIKE 'training_%'",
+            order_by=["start_time DESC"],
+            max_results=1
+        )
+        if runs:
+            return runs[0].info.run_id
+
+    # Si aucun run trouvé, créer un nouveau
+    with mlflow.start_run(run_name=run_name) as run:
+        return run.info.run_id
 
 def train_and_log_model_with_mlflow(
     model: object,
@@ -82,38 +98,14 @@ def train_and_log_model_with_mlflow(
 ) -> Tuple[object, Dict[str, float]]:
     """
     Entraîne un modèle, effectue une validation croisée et enregistre les résultats avec MLflow.
-
-    Args:
-        model (object): Modèle à entraîner.
-        features_train (pd.DataFrame): Features d'entraînement.
-        target_train (pd.Series): Cible d'entraînement.
-        features_test (pd.DataFrame): Features de test.
-        target_test (pd.Series): Cible de test.
-        experiment_name (str): Nom de l'expérience MLflow.
-        run_name (str): Nom du run MLflow.
-        model_parameters (Dict[str, Union[int, float]]): Paramètres du modèle.
-        run_tags (Dict[str, str]): Tags pour le run MLflow.
-        cross_validation_strategy (Union[int, TimeSeriesSplit]): Stratégie de validation croisée.
-        scoring_metrics (Tuple[str, ...]): Métriques de scoring.
-        groups (Optional[np.ndarray], optional): Groupes pour validation croisée groupée.
-
-    Returns:
-        Tuple[object, Dict[str, float]]: Modèle entraîné et scores de validation.
     """
-    mlflow_client = MlflowClient()
-    try:
-        experiment_id = mlflow_client.create_experiment(name=experiment_name)
-        logging.info("Nouvelle expérience créée avec l'ID : %s", experiment_id)
-    except Exception:
-        experiment = mlflow_client.get_experiment_by_name(experiment_name)
-        experiment_id = experiment.experiment_id
+    # Récupérer ou créer le run parent
+    parent_run_id = get_or_create_parent_run(experiment_name, run_name)
 
-    mlflow.set_experiment(experiment_name)
-
-    with mlflow.start_run(run_name=run_name):
+    with mlflow.start_run(run_id=parent_run_id):
         mlflow.set_tags(run_tags)
 
-        # Validation croisée
+        # Effectuer la validation croisée
         cross_validation_scores = perform_cross_validation(
             features=features_train,
             target=target_train,
@@ -123,15 +115,14 @@ def train_and_log_model_with_mlflow(
             groups=groups
         )
 
-        # Enregistrement des paramètres et métriques
+        # Logger les paramètres et métriques
         for param_name, param_value in model_parameters.items():
             mlflow.log_param(param_name, param_value)
         mlflow.log_metrics(cross_validation_scores)
 
-        # Préparation et sauvegarde des données
+        # Sauvegarder les données prétraitées
         preprocessed_dir = "data/interim/preprocessed"
         os.makedirs(preprocessed_dir, exist_ok=True)
-
         data_files = {
             "features_train": os.path.join(preprocessed_dir, "features_train.parquet"),
             "features_test": os.path.join(preprocessed_dir, "features_test.parquet"),
@@ -139,24 +130,21 @@ def train_and_log_model_with_mlflow(
             "target_test": os.path.join(preprocessed_dir, "target_test.parquet")
         }
 
-        # Enregistrement des DataFrames
         features_train.to_parquet(data_files["features_train"], index=False)
         features_test.to_parquet(data_files["features_test"], index=False)
         target_train.to_frame().to_parquet(data_files["target_train"], index=False)
         target_test.to_frame().to_parquet(data_files["target_test"], index=False)
 
-        # Log des artefacts
         for file_path in data_files.values():
             mlflow.log_artifact(file_path)
 
-        # Ajustement et enregistrement du modèle
+        # Entraîner et sauvegarder le modèle
         model.fit(features_train, target_train)
         signature = infer_signature(features_train, target_train)
         input_example = features_train.head(1)
         mlflow.sklearn.log_model(model, "model", input_example=input_example, signature=signature)
 
         return model, cross_validation_scores
-
 
 def main():
     """
@@ -185,7 +173,7 @@ def main():
         subsample=0.9
     )
 
-    # Paramètres et tags pour MLFlow
+    # Paramètres et tags pour MLflow
     MODEL_PARAMETERS = {
         'learning_rate': 0.07,
         'max_depth': 5,
@@ -219,7 +207,7 @@ def main():
     logging.info("Valeurs manquantes dans X_train : %s", features_train.isna().sum().sum())
     logging.info("Valeurs manquantes dans y_train_reg : %s", target_train_reg.isna().sum().sum())
 
-    # Entraînement du modèle avec enregistrement MLFlow
+    # Entraînement du modèle avec enregistrement MLflow
     trained_model, cross_validation_scores = train_and_log_model_with_mlflow(
         model=model,
         features_train=features_train,
@@ -236,7 +224,6 @@ def main():
 
     logging.info("Entraînement et validation croisée terminés.")
     logging.info("Scores de validation croisée : %s", cross_validation_scores)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
