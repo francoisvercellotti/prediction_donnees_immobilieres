@@ -31,6 +31,7 @@ Application d'estimation immobilière basée sur le machine learning, développ�
 - Gestion des dépendances avec uv
 - Versioning avec Git/GitHub
 - Tracking des expérimentations avec MLflow
+- Monitoring du data drift et model drift avec Evidently
 - Automatisation avec Makefile
 - Pipeline CI/CD avec GitHub Actions
 - Containerisation avec Docker
@@ -56,7 +57,13 @@ Application d'estimation immobilière basée sur le machine learning, développ�
    - Déploiement containerisé
    - Intégration continue
 
-4. **Code de Qualité**
+4. **Monitoring Avancé**
+   - Détection automatique du data drift via Evidently
+   - Surveillance continue du model drift
+   - Alertes en cas de dégradation des performances
+   - Tableaux de bord de monitoring en temps réel
+
+5. **Code de Qualité**
    - Standards de code élevés (Pylint > 8)
    - Architecture modulaire et maintenable
    - Documentation complète
@@ -70,7 +77,7 @@ Application d'estimation immobilière basée sur le machine learning, développ�
 
 ## 🛠 Technologies Utilisées
 - **ML/Data Science**: Python, Scikit-learn, SHAP
-- **MLOps**: MLflow, Makefile
+- **MLOps**: MLflow, Evidently, Makefile
 - **DevOps**: Docker, GitHub Actions
 - **Développement**: Streamlit, uv
 - **Qualité**: Pylint, Tests unitaires

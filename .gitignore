@@ -21,3 +21,4 @@ data/
 # autres
 *.log
 *.txt
+notebooks/best_classification_model_error_analysis.ipynb
